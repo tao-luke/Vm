@@ -6,9 +6,12 @@
 
 class File{
     std::vector<Line> file;
-    public:
+    int lineSize;
+
+public:
     File(std::vector<char> raw, int lineSize);
     int size();
+    void insertNL(int line, bool withNL);
     void printLines();
     std::vector<char>& getLineRaw(int line);
     int getLineSize(int line);
@@ -16,6 +19,11 @@ class File{
     std::vector<char> convertToRaw();
     void removeLine(int line);
     void clearLine(int line);
+    int charTotal();
+    void insertCharToLine(int line, int x, int c);
+    void eraseCharFromLine(int line, int x);
+    bool getLineWithNL(int line);
+    void setLineWithNL(int line,bool next);
     // void insertWord(int cursorY, int cursorX, const vector<char>& word);
     // void deleteFrom(int index);
     // int find(vector<char> word);

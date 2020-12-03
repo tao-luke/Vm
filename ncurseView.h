@@ -11,11 +11,14 @@ class NcurseView : public View
 
     //make sure we take the actual concret vim class here.
     int cursorY, cursorX, screenH, screenW, maxH, firstDisplayLine;
+    bool atEnd = false;
     Vm &vm;
     void displayFile();
     bool validCursor(int cursorY, int cursorX);
     bool validFirstLine(int firstLine);
     int updateMaxH();
+    void moveRight();
+    void scrollDown();
     void displayStatusBar(int c);
 
 public:

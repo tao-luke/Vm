@@ -7,7 +7,10 @@
 #include "file.h"
 #include <string>
 #include <iostream>
-NcurseView::NcurseView(Vm &vm):cursorY{0},cursorX{0},screenH{0},screenW{0},maxH{0},firstDisplayLine{0},vm{vm}{
+class badmove{
+};
+NcurseView::NcurseView(Vm &vm) : cursorY{0}, cursorX{0}, screenH{0}, screenW{0}, maxH{0}, firstDisplayLine{0}, vm{vm}
+{
 }
 
 void NcurseView::displayFile(){ //handle the display of the content after a firstDisplayLine change
@@ -29,6 +32,10 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
             }
             x = 0;
             y++;
+            if (file.getLineWithNL(i)){
+                move(y-1, screenW - 1);
+                addch('1');
+            }
     }
     int tmp = maxH;
     while (tmp < firstDisplayLine + screenH)
@@ -65,7 +72,7 @@ bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if simple 
     }
 
     File file = vm.getFile();
-    if (cursorX > file.getRawLineSize(cursorY)){
+    if (cursorX > file.getRawLineSize(cursorY+firstDisplayLine)){
         return false;
     }
     if (cursorX < 0)
@@ -73,7 +80,7 @@ bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if simple 
     return true;
 }
 bool NcurseView::validFirstLine(int firstLine){ //determine if is it ok to have firsTLine as firstDisplayLine?
-    if (firstLine + screenH <= maxH && firstLine >= 0)
+    if (firstLine+ screenH <= maxH && firstLine >= 0) //we had cursorY instead here //!
         return true;
     return false;
 }
@@ -90,7 +97,7 @@ void NcurseView::displayStatusBar(int c = -1){
     char const *x = b.c_str();
     std::string p = std::to_string(maxH);
     char const *H = p.c_str();
-    std::string k = std::to_string(screenH+1);
+    std::string k = std::to_string(screenH);
     char const *r = k.c_str();
     std::string n = std::to_string(firstDisplayLine);
     char const *f = n.c_str();
@@ -122,28 +129,34 @@ void NcurseView::displayStatusBar(int c = -1){
 }
 void NcurseView::updateView(Action action){
     switch(action){
-        case Action::up:
-             if (cursorY > 0){ //if we can move the cursor at all
+        case Action::up: 
+             if (cursorY >=4 || (firstDisplayLine -1  < 0)){ //if we can move the cursor at all //! make this go up at 6 space
                 if (validCursor(cursorY-1,cursorX)){ //simple move
                     cursorY--;
                 }else if (validCursor(cursorY-1, (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY-1))){ //different line length move
                     cursorY--;
                     cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
                 }
-             }else if (validFirstLine(firstDisplayLine-1)){ //at the top already
+             }else { //at the top already
                 firstDisplayLine--;
+                if (!(validCursor(cursorY,cursorX))){
+                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
+                }
              }
              break;
         case Action::down:
-             if (cursorY+1< screenH){ //if we can move the cursor at all
+             if (cursorY+4<= screenH || (firstDisplayLine+1+screenH > maxH)){ //if we can move the cursor at all 
                 if (validCursor(cursorY+1,cursorX)){ //simple move
                     cursorY++;
                 }else if (validCursor(cursorY+1, (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY+1))){ //different line length move
                     cursorY++;
                     cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
                 }
-             }else if (validFirstLine(firstDisplayLine+1)){ //at the end already
+             }else{ //at the end already
                 firstDisplayLine++; 
+                if (!(validCursor(cursorY,cursorX))){
+                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
+                }
              }
              break;
         case Action::left:
@@ -151,8 +164,12 @@ void NcurseView::updateView(Action action){
                 cursorX--;
             break;
         case Action::right: 
-            if (cursorX < (vm.getFile()).getRawLineSize(cursorY+firstDisplayLine))
+            if (cursorX + 1 == screenW){ //if cursorX is at the end of screen
+                //!impelmenting checking if they are the same line later
+            }
+            else if (validCursor(cursorY,cursorX+1)){
                 cursorX++;
+            }
             break;
         case Action::toCommand:
             vm.setState(State::command);
@@ -163,11 +180,13 @@ void NcurseView::updateView(Action action){
         case Action::deleteLine:
             if (maxH == 1){
                 vm.clearLine(cursorY + firstDisplayLine);
+            }else{
+                vm.removeLine(cursorY + firstDisplayLine);
+                updateMaxH();
+                if (!(validCursor(cursorY, cursorX))) //if y is out of bound
+                    cursorY--;
+                cursorX = 0;
             }
-            vm.removeLine(cursorY + firstDisplayLine);
-            updateMaxH();
-            if (!(validCursor(cursorY,cursorX))) //if y is out of bound
-                cursorY--;
             break;
         default:
             printw("what is this");
@@ -178,47 +197,108 @@ void NcurseView::updateView(Action action){
         move(cursorY, cursorX);
         refresh();
 }
-void NcurseView::updateView(int c){ //for INsert mode
+void NcurseView::moveRight(){
+    if (validCursor(cursorY,cursorX+1)){
+        cursorX++;
+        if (cursorX == screenW)
+        {
+            cursorY++;
+            cursorX = 0;
+        }
+    }
+}
+void NcurseView::scrollDown(){
+    if (firstDisplayLine+1+ screenH <= maxH ){
+        firstDisplayLine++;
+    }
+}
+void NcurseView::updateView(int c){ //for INsert mode //!bugs here
+    File& file = vm.getFile();
     if (c != 27)
     {                  //NOT esecape key
         if (c == 127){ //given delete key
-            int bef = (vm.getFile()).size();
-            int tmp = (vm.getFile()).getRawLineSize(firstDisplayLine+ cursorY-1);
-            vm.delCharFromFile(cursorY + firstDisplayLine, cursorX);
-            int aft = (vm.getFile()).size();
-            if (bef == aft){
-                if (cursorX > 0)
+            if (!(cursorX == 0 && cursorY ==0)){
+                int bef = (file).size();
+                int tmp = (file).getRawLineSize(firstDisplayLine + cursorY - 1);
+                vm.delCharFromFile(cursorY + firstDisplayLine, cursorX);
+                int aft = (file).size();
+                if (bef == aft)
+                {
                     cursorX--;
-            }
+                }
             else{
                 updateMaxH();
-                if (cursorY <= 6 && validFirstLine(firstDisplayLine-1)){ //the 6 is for comfort, so the user can view the parts just before the target cursor
-                    firstDisplayLine--; //!confirm is ok
-                }else{
+                if (cursorY <= 4 && (validFirstLine(firstDisplayLine - 1)))
+                { //the 6 is for comfort, so the user can view the parts just before the target cursor
+                    firstDisplayLine--;
+                }
+                else
+                {
                     cursorY--;
                 }
                 cursorX = tmp;
             }
+            }
         }
         else
         {
-            int bef = (vm.getFile()).size();
-            vm.insertCharToFile(cursorY+firstDisplayLine, cursorX, c);
-            int aft = (vm.getFile()).size();
-            if (bef == aft)
-                cursorX++;
-            else{
-                updateMaxH();
-                if (cursorY+6 >= screenH && validFirstLine(firstDisplayLine+1))
-                    firstDisplayLine++;
+            if (c == '\n'){
+                if (atEnd){
+                    file.insertNL(firstDisplayLine+cursorY,true);
+                    file.setLineWithNL(firstDisplayLine + cursorY - 1, true);
+                    updateMaxH();
+                    if (cursorY >= screenH)
+                    {
+                        scrollDown();
+                        cursorY--;
+                    }
+                    atEnd = false;
+                }
                 else
-                    cursorY++;
-                cursorX = 0;
+                {
+                    file.insertCharToLine(cursorY + firstDisplayLine, cursorX, c);
+                    updateMaxH();
+                    if (cursorY + 1 >= screenH)
+                    {
+                        scrollDown();
+                    }
+                    else
+                    {
+                        cursorY++;
+                    }
+                    cursorX = 0;
+                }
+            }else{
+                if (atEnd){
+                    file.insertNL(firstDisplayLine + cursorY, false);
+                    file.insertCharToLine(firstDisplayLine + cursorY, cursorX, c);
+                    updateMaxH();
+                    if (cursorY >= screenH)
+                    {
+                        scrollDown();
+                        cursorY--;
+                    }
+                    cursorX++;
+                    atEnd = false;
+                }else{
+                    file.insertCharToLine(firstDisplayLine + cursorY, cursorX, c);
+                    updateMaxH();
+                    if (cursorX + 1 < screenW)
+                    {
+                        cursorX++;
+                    }
+                    else
+                    {
+                        file.setLineWithNL(firstDisplayLine + cursorY, false); //convention
+                        cursorY++;
+                        cursorX = 0;
+                        atEnd = true;
+                    }
+                }
             }
         }
     }
-    else
-    { //escape key
+    else{ //escape key
         vm.setState(State::command);
     }
     erase();

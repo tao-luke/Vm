@@ -65,7 +65,48 @@ int Vm::cursorToIndex(int y, int x){
     }
     std::cout << "inpossible cursor posn !!!!! WOWOWOW";
 }
-
+/*
+            if c = enter
+                if atEnd is true, then 
+                    insertNL at first+y
+                    
+                    if (y >= screenH)
+                        scrolldown
+                        y--;
+                        x no change;
+                    else
+                        y no change
+                        x no change
+                    atEnd = false;
+                else
+                    insert
+                    if (y+1>= screenH)
+                        scrolldown
+                        y no change
+                    else
+                        y++
+                    x= 0
+            if c all else
+                if atEnd is true
+                    insertNL at first+y
+                    insert
+                    if (y >= screenH)
+                        scrolldown
+                        y--;
+                    else
+                        y no change;
+                    x++;   
+                    atEnd = false
+                else
+                    insert
+                    if (x+1 < screenW)
+                        y no change;
+                        x++;
+                    else
+                        y++;
+                        x=0;
+                        atEnd = true
+            */
 void Vm::formatToRaw(){
     buffer = std::move(file->convertToRaw());
 }
@@ -74,14 +115,8 @@ void Vm::removeLine(int lineN){
     formatToRaw();
 }
 void Vm::insertCharToFile(int y, int x, int c){
-    //insert to buffer
-    //convert to file
-    //update file
-    int index = cursorToIndex(y, x);
-    auto ite = (buffer.begin()) + index;
-    char ch = c;
-    buffer.insert(ite, ch);
-    formatToFile();
+    file->insertCharToLine(y, x, c);
+    formatToRaw();
 }
 
 void Vm::clearLine(int lineN){
@@ -89,12 +124,10 @@ void Vm::clearLine(int lineN){
     formatToRaw();
 }
 void Vm::delCharFromFile(int y, int x){ //! add another version of this to support dd.
-    if (y == 0 && x ==0)
+    if (file->charTotal() == 0)
         return;
-    int index = cursorToIndex(y, x);
-    auto ite = (buffer.begin()) + (index - 1);
-    buffer.erase(ite);
-    formatToFile();
+    file->eraseCharFromLine(y, x);
+    formatToRaw();
 }
 
 File &Vm::getFile(){
