@@ -212,40 +212,128 @@ void NcurseView::scrollDown(){
         firstDisplayLine++;
     }
 }
-void NcurseView::updateView(int c){ //for INsert mode //!bugs here
+void NcurseView::updateView(int c){ //for INsert mode 
     File& file = vm.getFile();
     if (c != 27)
     {                  //NOT esecape key
         if (c == 127){ //given delete key
-            if (!(cursorX == 0 && cursorY ==0)){
-                int bef = (file).size();
-                int tmp = (file).getRawLineSize(firstDisplayLine + cursorY - 1);
-                vm.delCharFromFile(cursorY + firstDisplayLine, cursorX);
-                int aft = (file).size();
-                if (bef == aft)
+            if (!(cursorX == 0)){
+                file.eraseCharFromLine(cursorY + firstDisplayLine, cursorX);
+                if (!(file.getLineWithNL(cursorY + firstDisplayLine)))
                 {
-                    cursorX--;
+                    updateMaxH();
                 }
-            else{
-                updateMaxH();
-                if (cursorY <= 4 && (validFirstLine(firstDisplayLine - 1)))
-                { //the 6 is for comfort, so the user can view the parts just before the target cursor
-                    firstDisplayLine--;
+                if (cursorY+firstDisplayLine != 0 && file.isLineEmpty(cursorY+firstDisplayLine) && !(file.getLineWithNL(cursorY+firstDisplayLine-1))){
+                    file.removeLine(cursorY + firstDisplayLine);
+                    file.setLineWithNL(cursorY + firstDisplayLine - 1, false);
                 }
-                else
-                {
-                    cursorY--;
-                }
-                cursorX = tmp;
+                cursorX--;
             }
+                /*
+                    if line has NL
+                        expect simple remove
+                    if not
+                        expect possible joining from the next line
+                        updatemaxh
+                    x--;
+                    y no change
+                */
+            else
+            {
+                if (cursorY+firstDisplayLine != 0){
+                    if (atEnd){
+                        file.getLineRaw(cursorY+firstDisplayLine-1).pop_back();
+                        cursorX = screenW - 1;
+                        cursorY--;
+                        atEnd = false;
+                        erase();
+                        displayFile(); //display the original file
+                        displayStatusBar(c);
+                        move(cursorY, cursorX);
+                        refresh();
+                        return; //special case
+                    }
+                    int bef;
+                    if (file.getLineWithNL(cursorY + firstDisplayLine - 1) && file.isLineFull(cursorY + firstDisplayLine - 1) && file.isLineEmpty(cursorY + firstDisplayLine))
+                    {
+                        file.setLineWithNL(cursorY + firstDisplayLine - 1, false);
+                        file.removeLine(cursorY + firstDisplayLine);
+                        erase();
+                        displayFile(); //display the original file
+                        displayStatusBar(c);
+                        move(cursorY, cursorX);
+                        refresh();
+                        return;
+                        //this is VERY special case :0
+                    }
+                    if (file.isLineFull(cursorY+firstDisplayLine-1) && !(file.getLineWithNL(firstDisplayLine+cursorY-1)) &&file.isLineEmpty(cursorY+firstDisplayLine)){
+                        file.getLineRaw(cursorY+firstDisplayLine-1).pop_back();
+                        file.setLineWithNL(cursorY + firstDisplayLine - 1,true);
+                        cursorX = screenW - 1;
+                        if (cursorY <= 4 && (validFirstLine(firstDisplayLine - 1)))
+                        { //the 6 is for comfort, so the user can view the parts just before the target cursor
+                            firstDisplayLine--;
+                        }else{
+                            cursorY--;
+                        }
+                        erase();
+                        displayFile(); //display the original file
+                        displayStatusBar(c);
+                        move(cursorY, cursorX);
+                        refresh();
+                        return;
+                    } //very specific case
+                    bef = file.getRawLineSize(cursorY + firstDisplayLine-1);
+                    file.eraseCharFromLine(cursorY + firstDisplayLine, cursorX);
+                    updateMaxH();
+                    if (file.getLineWithNL(cursorY+firstDisplayLine-1)){
+                        cursorX = bef;
+                    }
+                    else
+                    {
+                        cursorX = bef - 1;
+                        if (cursorX == -1)
+                            cursorX++;
+                    }
+                    if (cursorY <= 4 && (validFirstLine(firstDisplayLine - 1)))
+                    { //the 6 is for comfort, so the user can view the parts just before the target cursor
+                        firstDisplayLine--;
+                    }else{
+                        cursorY--;
+                    }
+                }
+                
+
+
+                /*
+                    record the previous line length
+                    if line previous has NL
+                        expect consumption of previous NL and joining of line and previous
+                        updatemaxh
+                        x = previous line length before add
+                    if not
+                        expect joining of line and previous
+                        updatemaxh
+                        x = previous line length before add -1
+                    if bla bla
+                        scroll
+                    else
+                        y--;
+                */
             }
         }
         else
         {
             if (c == '\n'){
                 if (atEnd){
-                    file.insertNL(firstDisplayLine+cursorY,true);
-                    file.setLineWithNL(firstDisplayLine + cursorY - 1, true);
+                    if (firstDisplayLine+cursorY-1 >=0 && file.getLineWithNL(firstDisplayLine+cursorY-1)){
+                        file.insertNL(firstDisplayLine + cursorY, true);
+                        file.setLineWithNL(firstDisplayLine + cursorY - 1, true);
+                    }
+                    else if (firstDisplayLine+cursorY >= maxH)
+                    {
+                        file.insertNL(firstDisplayLine + cursorY, false);
+                    }
                     updateMaxH();
                     if (cursorY >= screenH)
                     {
@@ -270,7 +358,15 @@ void NcurseView::updateView(int c){ //for INsert mode //!bugs here
                 }
             }else{
                 if (atEnd){
-                    file.insertNL(firstDisplayLine + cursorY, false);
+                    if (firstDisplayLine+cursorY-1 >=0 && file.getLineWithNL(firstDisplayLine+cursorY-1)){
+                        file.insertNL(firstDisplayLine + cursorY, true);
+                        file.setLineWithNL(firstDisplayLine + cursorY - 1, false);
+                    }
+                    else if (firstDisplayLine+cursorY >= maxH)
+                    {
+                        file.insertNL(firstDisplayLine + cursorY, false);
+                    }
+
                     file.insertCharToLine(firstDisplayLine + cursorY, cursorX, c);
                     updateMaxH();
                     if (cursorY >= screenH)
@@ -281,6 +377,7 @@ void NcurseView::updateView(int c){ //for INsert mode //!bugs here
                     cursorX++;
                     atEnd = false;
                 }else{
+                    int before = maxH;
                     file.insertCharToLine(firstDisplayLine + cursorY, cursorX, c);
                     updateMaxH();
                     if (cursorX + 1 < screenW)
@@ -289,7 +386,6 @@ void NcurseView::updateView(int c){ //for INsert mode //!bugs here
                     }
                     else
                     {
-                        file.setLineWithNL(firstDisplayLine + cursorY, false); //convention
                         cursorY++;
                         cursorX = 0;
                         atEnd = true;

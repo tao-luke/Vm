@@ -18,6 +18,10 @@ public:
     int getRawLineSize(int line);
     std::vector<char> convertToRaw();
     void removeLine(int line);
+    void LineJoinFromTo(int line1, int line2);
+    void recurTakeBottomUp(int from);
+    bool isLineFull(int line);
+    bool isLineEmpty(int line);
     void clearLine(int line);
     int charTotal();
     void insertCharToLine(int line, int x, int c);

@@ -65,48 +65,7 @@ int Vm::cursorToIndex(int y, int x){
     }
     std::cout << "inpossible cursor posn !!!!! WOWOWOW";
 }
-/*
-            if c = enter
-                if atEnd is true, then 
-                    insertNL at first+y
-                    
-                    if (y >= screenH)
-                        scrolldown
-                        y--;
-                        x no change;
-                    else
-                        y no change
-                        x no change
-                    atEnd = false;
-                else
-                    insert
-                    if (y+1>= screenH)
-                        scrolldown
-                        y no change
-                    else
-                        y++
-                    x= 0
-            if c all else
-                if atEnd is true
-                    insertNL at first+y
-                    insert
-                    if (y >= screenH)
-                        scrolldown
-                        y--;
-                    else
-                        y no change;
-                    x++;   
-                    atEnd = false
-                else
-                    insert
-                    if (x+1 < screenW)
-                        y no change;
-                        x++;
-                    else
-                        y++;
-                        x=0;
-                        atEnd = true
-            */
+
 void Vm::formatToRaw(){
     buffer = std::move(file->convertToRaw());
 }

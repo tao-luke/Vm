@@ -47,35 +47,13 @@ void File::insertCharToLine(int line, int x, int c){ //! enter doesnt work and f
                 ++start;
             }
             ((file[line]).getRaw()).erase(ite,end); //erase the stuff from the original
-            file.push_back(Line(tmp, false, lineSize)); //add a new line to the bottom with the moved chars
-            if (file[line].getWithNL()) //if the original ine had NL pass it on but remove from old
-            {
-                file[line+1].setWithNL(true);
-            }else{
-                file[line].setWithNL(true);
-            }
+            file.push_back(Line(tmp, true, lineSize)); //add a new line to the bottom with the moved chars
+            file[line].setWithNL(true);
             return;
         }
-        if (!(file[line].getWithNL())){ //if the original line did NOT have  a NL
-            file[line].setWithNL(true); //set this one to true NL
-
-            std::vector<char> tmp;
-            auto ite = ((file[line]).getRaw()).begin() + x; //find where we are adding nl
-            auto start = ite;
-            auto end = ((file[line]).getRaw()).end();
-            while (start != end) //copy everything after newline to another line
-            {
-                tmp.push_back(*start);
-                ++start;
-            }
-            ((file[line]).getRaw()).erase(ite,end); //erase the stuff from the original
-            for (auto it = tmp.rbegin(); it != tmp.rend(); ++it){
-                insertCharToLine(line + 1, 0, *it);
-            }
-            return;
-        }
-        else //this line has a newline already
+        else 
         {
+            file[line].setWithNL(true);
             std::vector<char> tmp;
             auto ite = ((file[line]).getRaw()).begin() + x; //find where we are adding nl
             auto start = ite;
@@ -135,16 +113,61 @@ std::vector<char> File::convertToRaw(){
 int File::size(){
     return file.size();
 }
-
+void File::LineJoinFromTo(int from, int to){
+    if (from <= file.size() && to <= file.size()){
+        int spots = lineSize - file[to].rawSize();
+        for (int i = 0; i < spots;i++){
+            if (file[from].rawSize() == 0){
+                setLineWithNL(to, getLineWithNL(from));
+                removeLine(from);
+                break;
+            }
+            file[to].getRaw().push_back(file[from].getRaw().front());
+            file[from].getRaw().erase(file[from].getRaw().begin());
+        }
+    }
+}
 void File::eraseCharFromLine(int line, int x){
-    if (file[line].rawSize() == 0){
+    if (isLineEmpty(line)){
         auto ite = file.begin() + line;
         file.erase(ite);
-    }else{
-        file[line].eraseCharAt(x);
+    }else
+    {
+        if (x ==0){ //if we need to join
+            if (getLineWithNL(line-1)){
+                LineJoinFromTo(line, line - 1);
+            }
+            else
+            {
+                file[line - 1].getRaw().pop_back();
+                recurTakeBottomUp(line - 1);
+            }
+        }
+        else
+        { //simple case
+            file[line].eraseCharAt(x);
+            recurTakeBottomUp(line);
+        }
     }
 }
 
+
+void File::recurTakeBottomUp(int from){
+    if (!(getLineWithNL(from))){
+        LineJoinFromTo(from+1, from );
+        recurTakeBottomUp(from+ 1);
+    }
+}
+bool File::isLineFull(int line){
+    if (line >= file.size())
+        return false;
+    return (getRawLineSize(line) == lineSize);
+}
+bool File::isLineEmpty(int line){
+    if (line >= file.size())
+        return false;
+    return (getRawLineSize(line) == 0);
+}
 std::vector<char>& File::getLineRaw(int line){
     return file[line].getRaw();
 }
