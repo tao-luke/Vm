@@ -127,85 +127,162 @@ void NcurseView::displayStatusBar(int c = -1){
     }
 
 }
-void NcurseView::updateView(Action action){
-    switch(action){
-        case Action::up: 
-             if (cursorY >=4 || (firstDisplayLine -1  < 0)){ //if we can move the cursor at all //! make this go up at 6 space
-                if (validCursor(cursorY-1,cursorX)){ //simple move
+void NcurseView::moveLeftUp(File & file){ //move left if possible, else if above is part of this line, move to its end
+    if (cursorX > 0)
+        cursorX--;
+    else
+    {
+        if (firstDisplayLine+cursorY > 0 && !(file.getLineWithNL(cursorY+firstDisplayLine-1))){
+            if (cursorY >= 4 || (firstDisplayLine - 1 < 0))
+            { //if we can move the cursor at all //! make this go up at 6 space
+                if (validCursor(cursorY - 1, (file).getRawLineSize(firstDisplayLine + cursorY - 1)))
+                { //different line length move
                     cursorY--;
-                }else if (validCursor(cursorY-1, (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY-1))){ //different line length move
-                    cursorY--;
-                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
+                    cursorX = (file).getRawLineSize(firstDisplayLine + cursorY);
                 }
-             }else { //at the top already
+            }
+            else
+            { //at the top already
                 firstDisplayLine--;
-                if (!(validCursor(cursorY,cursorX))){
-                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
+                if (!(validCursor(cursorY, cursorX)))
+                {
+                    cursorX = (file).getRawLineSize(firstDisplayLine + cursorY);
+                    if (cursorX == screenW)
+                        cursorX--;
                 }
-             }
-             break;
-        case Action::down:
-             if (cursorY+4<= screenH || (firstDisplayLine+1+screenH > maxH)){ //if we can move the cursor at all 
-                if (validCursor(cursorY+1,cursorX)){ //simple move
-                    cursorY++;
-                }else if (validCursor(cursorY+1, (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY+1))){ //different line length move
-                    cursorY++;
-                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
-                }
-             }else{ //at the end already
-                firstDisplayLine++; 
-                if (!(validCursor(cursorY,cursorX))){
-                    cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine+cursorY);
-                }
-             }
-             break;
-        case Action::left:
-            if (cursorX > 0)
+            }
+            if (cursorX == screenW)
                 cursorX--;
-            break;
-        case Action::right: 
-            if (cursorX + 1 == screenW){ //if cursorX is at the end of screen
-                //!impelmenting checking if they are the same line later
+        }
+    }
+}
+void NcurseView::moveRightDown(File &file){
+    if (cursorX + 1 == screenW )
+    { //if cursorX is at the end of screen
+        if (cursorY+firstDisplayLine+1 < maxH && !(file.getLineWithNL(cursorY+firstDisplayLine))){
+            if (cursorY + 4 <= screenH || (firstDisplayLine + 1 + screenH > maxH))
+            { //if we can move the cursor at all
+                cursorY++;
+                cursorX = 0;
+            }else
+            {
+                firstDisplayLine++;
+                cursorX = 0;
             }
-            else if (validCursor(cursorY,cursorX+1)){
-                cursorX++;
+        }
+    }
+    else if (validCursor(cursorY, cursorX + 1))
+    {
+        cursorX++;
+    }
+
+}
+void NcurseView::updateView(Action action){
+    File & file = vm.getFile();
+    switch (action)
+    {
+    case Action::up:
+        if (cursorY >= 4 || (firstDisplayLine - 1 < 0))
+        { //if we can move the cursor at all //! make this go up at 6 space
+            if (validCursor(cursorY - 1, cursorX))
+            { //simple move
+                cursorY--;
             }
-            break;
-        case Action::toCommand:
-            vm.setState(State::command);
-            break;
-        case Action::toInsert:
-            vm.setState(State::insert);
-            break;
-        case Action::deleteLine:
-            if (maxH == 1){
-                vm.clearLine(cursorY + firstDisplayLine);
-            }else{
+            else if (validCursor(cursorY - 1, (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY - 1)))
+            { //different line length move
+                cursorY--;
+                cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY);
+            }
+        }
+        else
+        { //at the top already
+            firstDisplayLine--;
+            if (!(validCursor(cursorY, cursorX)))
+            {
+                cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY);
+            }
+        }
+        break;
+    case Action::down:
+        if (cursorY + 4 <= screenH || (firstDisplayLine + 1 + screenH > maxH))
+        { //if we can move the cursor at all
+            if (validCursor(cursorY + 1, cursorX))
+            { //simple move
+                cursorY++;
+            }
+            else if (validCursor(cursorY + 1, (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY + 1)))
+            { //different line length move
+                cursorY++;
+                cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY);
+            }
+        }
+        else
+        { //at the end already
+            firstDisplayLine++;
+            if (!(validCursor(cursorY, cursorX)))
+            {
+                cursorX = (vm.getFile()).getRawLineSize(firstDisplayLine + cursorY);
+            }
+        }
+        break;
+    case Action::left:
+        moveLeftUp(file);
+        break;
+    case Action::right:
+        moveRightDown(file);
+        break;
+    case Action::toCommand:
+        vm.setState(State::command);
+        break;
+    case Action::toInsert:
+        vm.setState(State::insert);
+        break;
+    case Action::deleteLine:
+        if (maxH == 1)
+        {
+            vm.clearLine(cursorY + firstDisplayLine);
+        }
+        else
+        {
+            if (!(file.getLineWithNL(cursorY+firstDisplayLine))){
+                int startInc;
+                int endInc;
+                bool tmp;
+                for (int i = cursorY + firstDisplayLine - 1; i >= 0;i--){
+                    startInc = i + 1;
+                    if (file.getLineWithNL(i))
+                        break;
+                }
+                for (int i = cursorY + firstDisplayLine + 1; i < maxH;i++){
+                    endInc = i;
+                    if (file.getLineWithNL(i))
+                        break;
+                }
+                for (int i = startInc; i <= endInc;i++){
+                    vm.removeLine(i);
+                }
+                updateMaxH();
+                while (!(validCursor(cursorY,cursorX)))
+                    cursorY--;
+            }
+            else
+            {
                 vm.removeLine(cursorY + firstDisplayLine);
                 updateMaxH();
                 if (!(validCursor(cursorY, cursorX))) //if y is out of bound
                     cursorY--;
-                cursorX = 0;
             }
-            break;
-        default:
-            printw("what is this");
+            cursorX = 0;
         }
+        break;
+    default:
+        printw("what is this");
+    }
         erase();
         displayFile(); //display the original file
         displayStatusBar();
         move(cursorY, cursorX);
         refresh();
-}
-void NcurseView::moveRight(){
-    if (validCursor(cursorY,cursorX+1)){
-        cursorX++;
-        if (cursorX == screenW)
-        {
-            cursorY++;
-            cursorX = 0;
-        }
-    }
 }
 void NcurseView::scrollDown(){
     if (firstDisplayLine+1+ screenH <= maxH ){

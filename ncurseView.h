@@ -17,9 +17,10 @@ class NcurseView : public View
     bool validCursor(int cursorY, int cursorX);
     bool validFirstLine(int firstLine);
     int updateMaxH();
-    void moveRight();
     void scrollDown();
     void displayStatusBar(int c);
+    void moveLeftUp(File &file);
+    void moveRightDown(File &file);
 
 public:
     NcurseView(Vm & vm); 

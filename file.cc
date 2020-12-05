@@ -114,8 +114,17 @@ int File::size(){
     return file.size();
 }
 void File::LineJoinFromTo(int from, int to){
+
     if (from <= file.size() && to <= file.size()){
-        int spots = lineSize - file[to].rawSize();
+        if (isLineEmpty(from)){
+            removeLine(from);
+            return;
+        }
+        else if (isLineEmpty(to)){
+            removeLine(to);
+            return;
+        }
+            int spots = lineSize - file[to].rawSize();
         for (int i = 0; i < spots;i++){
             if (file[from].rawSize() == 0){
                 setLineWithNL(to, getLineWithNL(from));
@@ -136,6 +145,7 @@ void File::eraseCharFromLine(int line, int x){
         if (x ==0){ //if we need to join
             if (getLineWithNL(line-1)){
                 LineJoinFromTo(line, line - 1);
+                recurTakeBottomUp(line);
             }
             else
             {
