@@ -13,11 +13,10 @@ enum State
 class Vm :public Model{
     //possibly store some state here.
     State state;
-    std::vector<char> buffer;
+    std::vector<vector<char>> buffer;
     unique_ptr<File> file;
     int lineSize = 0;
     void readFile(const char *name);
-    int cursorToIndex(int y, int x);
     void formatToFile();
     void formatToRaw();
 
@@ -27,11 +26,12 @@ public:
     ~Vm();
     void run();
     int getActionRaw();
-    void insertCharToFile(int y, int x, int c);
-    void delCharFromFile(int y, int x);
+    void insert_newline_inFile(int line);
+    void insertCharToFile(int line, int x, int c);
+    void delCharFromFile(int line, int x);
     void setState(State state);
     State getState();
-    void removeLine(int lineN);
+    void removeLineFromFile(int lineN);
     File &getFile();
 };
 

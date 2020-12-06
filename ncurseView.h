@@ -21,6 +21,7 @@ class NcurseView : public View
     void displayStatusBar(int c);
     void moveLeftUp(File &file);
     void moveRightDown(File &file);
+    void scrollUp();
 
 public:
     NcurseView(Vm & vm); 

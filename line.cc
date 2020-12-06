@@ -1,11 +1,7 @@
 #include "line.h"
 #include <iostream> //for testing
-Line::Line(const std::vector<char>& rawLine,bool withNL,int lineSize):rawLine{rawLine},withNL{withNL},lineSize{lineSize}{
+Line::Line(const std::vector<char>& rawLine,bool withNL,int lineSize,int fileLine,int bufferLine, int beginIndex):rawLine{rawLine},withNL{withNL},lineSize{lineSize},bufferLine{bufferLine},beginIndex{beginIndex}{
     update();
-}
-
-Line::Line(bool withNL,int lineSize):withNL{withNL},lineSize{lineSize}{
-    
 }
 bool Line::isFull(){
     return lineSize <= rawLine.size();
@@ -24,17 +20,6 @@ void Line::update(){
         }
     }
     if (!(tmp.empty())) line.push_back(Word(tmp));
-}
-int Line::insertCharAt(int x, int c){
-    int overflow = -1;
-    if (rawSize() == lineSize)
-    {
-        overflow = rawLine[lineSize - 1];
-        rawLine.pop_back();
-    }
-    auto ite = rawLine.begin() + x;
-    rawLine.insert(ite, c);
-    return overflow;
 }
 void Line::print(){ //! for debuggin
     // for(int i = 0;i<line.size();i++){
@@ -62,12 +47,14 @@ void Line::setWithNL(bool given){
 std::vector<char>& Line::getRaw(){
     return rawLine;
 }
-
-void Line::eraseCharAt(int x){
-    if (x<= lineSize){
-        auto ite = rawLine.begin() + (x-1);
-        rawLine.erase(ite);
-    }
+int Line::getBeginIndex(){
+    return beginIndex;
+}
+int Line::getBufferLine(){
+    return bufferLine;
+}
+int Line::getFileLine(){
+    return fileLine;
 }
 int Line::size(){
     return line.size();
