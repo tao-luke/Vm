@@ -70,6 +70,14 @@ int File::lineTotal(){
 int File::getBeginIndexOnLine(int line){
     return file[line].getBeginIndex();
 }
+
+Line & File::getLine(int line){
+    if (line < file.size()){
+        return file[line];
+    }else{
+        std::cout << "not valid line" << std::endl;
+    }
+}
 std::pair<int,int> File::convert_cursor(int y, int x){
     int first;
     int second;
@@ -85,29 +93,6 @@ std::pair<int,int> File::convert_cursor(int y, int x){
     }
     return std::pair<int, int>(first, second);
 }
-void File::LineJoinFromTo(int from, int to){ //!
-
-    if (from <= file.size() && to <= file.size()){
-        if (isLineEmpty(from)){
-            removeLine(from);
-            return;
-        }
-        else if (isLineEmpty(to)){
-            removeLine(to);
-            return;
-        }
-            int spots = lineSize - file[to].rawSize();
-        for (int i = 0; i < spots;i++){
-            if (file[from].rawSize() == 0){
-                setLineWithNL(to, getLineWithNL(from));
-                removeLine(from);
-                break;
-            }
-            file[to].getRaw().push_back(file[from].getRaw().front());
-            file[from].getRaw().erase(file[from].getRaw().begin());
-        }
-    }
-}
 
 bool File::isLineFull(int line){
     if (line >= file.size())
@@ -121,9 +106,6 @@ bool File::isLineEmpty(int line){
 }
 std::vector<char>& File::getLineRaw(int line){
     return file[line].getRaw();
-}
-void File::removeLine(int line){
-    //!
 }
 int File::getLineSize(int line){
     return file[line].size();

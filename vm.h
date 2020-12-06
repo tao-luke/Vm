@@ -19,6 +19,7 @@ class Vm :public Model{
     void readFile(const char *name);
     void formatToFile();
     void formatToRaw();
+    void mergeLines(int l1, int l2);
 
 public:
     void clearLine(int y);

@@ -95,11 +95,34 @@ void Vm::clearLine(int lineN){
         buffer[data.first].clear();
     }
 }
-void Vm::delCharFromFile(int y, int x){ //! add another version of this to support dd.
-    // if (file->charTotal() == 0)
-    //     return;
-    // file->eraseCharFromLine(y, x);
-    // formatToRaw();
+void Vm::mergeLines(int from, int to){ //add from to to and erase from
+    if (from < buffer.size() && to < buffer.size()){
+        for(auto &c:buffer[from]){
+            buffer[to].push_back(c);
+        }
+        buffer.erase(buffer.begin() + from);
+    }
+    else
+    {
+        std::cout << "from and to are out of range" << std::endl;
+    }
+}
+void Vm::delCharFromFile(int line, int x)
+{
+    std::pair<int, int> data = file->convert_cursor(line, x);
+    int beginIndex = file->getLine(line).getBeginIndex();
+    if (x==0){
+        if (beginIndex ==0){
+            if (data.first > 0){ //if there is a previous line to merge to
+                mergeLines(data.first, data.first - 1);
+            }
+        }else{
+            buffer[data.first].erase(buffer[data.first].begin() + data.second - 1);
+        }
+    }else{ // x-1's element
+        buffer[data.first].erase(buffer[data.first].begin() + data.second - 1);
+    }
+    formatToFile();
 }
 
 File &Vm::getFile(){

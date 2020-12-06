@@ -15,11 +15,10 @@ public:
     int getBeginIndexOnLine(int line);
     void printLines();
     std::vector<char>& getLineRaw(int line);
+    Line &getLine(int line);
     int getLineSize(int line);
     int getRawLineSize(int line);
     std::vector<std::vector<char>> convertToRaw();
-    void removeLine(int line);
-    void LineJoinFromTo(int line1, int line2);
     bool isLineFull(int line);
     bool isLineEmpty(int line);
     int charTotal();

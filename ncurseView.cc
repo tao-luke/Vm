@@ -260,8 +260,15 @@ void NcurseView::updateView(Action action){
         erase();
         displayFile(); //display the original file
         displayStatusBar();
-        move(cursorY, cursorX);
+        moveCursor(cursorY, cursorX);
         refresh();
+}
+void NcurseView::moveCursor(int y, int x){
+    if (x == screenW){
+        y++;
+        x = 0;
+    }
+    move(y, x);
 }
 void NcurseView::scrollDown(){
     if (firstDisplayLine+1+ screenH <= maxH ){
@@ -280,53 +287,60 @@ void NcurseView::scrollUp(){
 void NcurseView::updateView(int c){ //for INsert mode 
     if (c != 27)
     {                  //NOT esecape key
+    int line = cursorY + firstDisplayLine;
         if (c == 127){ //given delete key
-
-        }
-        else
-        {
-            int line = cursorY + firstDisplayLine;
-            if (c == '\n'){
-                if (atEnd){
-                    vm.insertCharToFile(line - 1, screenW, c);
-                    atEnd = false;
-                    updateMaxH();
-                    //! start here
-                }
-                else
-                {
-                    vm.insertCharToFile(line, cursorX, c);
-                    updateMaxH();
-                    cursorY++;
-                    cursorX = 0;
-                }
-                if (cursorY >= screenH || cursorY >= screenH-4){
-                    scrollDown();
+            int beginIndex = vm.getFile().getBeginIndexOnLine(line); //! still need fixing, cant handle at end then not at end
+            if (cursorX == 0) //crusorx = 0
+            {
+                if (!(line == 0)){ //not at x,y == 0,0
+                    int tmp = vm.getFile().getRawLineSize(line-1);
+                    vm.delCharFromFile(line, cursorX);
+                    cursorY--;
+                    if (beginIndex == 0){ //prepare for merge
+                        cursorX = tmp;
+                    }
+                    else
+                    {
+                        cursorX = tmp - 1;
+                    }
                 }
             }
             else
-            { //if anything but space, we just insert and adjust cursor accordingly
-
-                if (atEnd){
-                    vm.insertCharToFile(line - 1, screenW, c);
-                    atEnd = false;
-                    updateMaxH();
-                    cursorX++;
-                    if (cursorY >= screenH-4){
-                        scrollDown();
-                    }
+            {
+                vm.delCharFromFile(line, cursorX);
+                if (beginIndex != 0 && cursorX==1){
+                    cursorY--;
+                    cursorX = screenW;
                 }
                 else
                 {
-                    vm.insertCharToFile(line, cursorX, c);
-                    updateMaxH();
-                    cursorX++;
-                    if (cursorX == screenW){
-                        cursorY++;
-                        cursorX = 0;
-                        atEnd = true;
-                    }
+                    cursorX--;
                 }
+            }
+            updateMaxH();
+            if (cursorY <= 4)
+            {
+                scrollUp();
+            }
+        }
+        else
+        {
+            vm.insertCharToFile(line, cursorX++, c);
+            updateMaxH();           
+            if (c == '\n'){
+                cursorX = 0;
+                cursorY++;
+            }
+            else
+            { //if anything but space, we just insert and adjust cursor accordingly
+                if (cursorX > screenW)
+                {
+                    cursorX = 1;
+                    cursorY++;
+                }
+            }
+            if (cursorY >= screenH-4){
+                scrollDown();
             }
         }
     }
@@ -336,7 +350,7 @@ void NcurseView::updateView(int c){ //for INsert mode
     erase();
     displayFile(); //display the original file
     displayStatusBar(c);
-    move(cursorY, cursorX);
+    moveCursor(cursorY, cursorX);
     refresh();
 }
 
