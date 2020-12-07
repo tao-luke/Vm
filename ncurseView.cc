@@ -33,9 +33,11 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
             x = 0;
             y++;
             move(y-1, screenW+1);
-            std::string k = std::to_string(file.getLineSize(i));
-            char const *r = k.c_str();
-            printw(r);
+            if (file.getLineWithNL(i)){
+                addch('1');
+            }else{
+                addch('0');
+            }
     }
     int tmp = maxH;
     while (tmp < firstDisplayLine + screenH)
@@ -182,6 +184,7 @@ void NcurseView::moveRightDown(File &file){
 void NcurseView::updateView(Action action){
     File & file = vm.getFile();
     int line = cursorY+firstDisplayLine;
+    int tmp;
     std::pair<int, int> data;
     switch (action)
     {
@@ -257,6 +260,39 @@ void NcurseView::updateView(Action action){
         if (cursorY <= 4){
             scrollUp();
         }
+        break;
+    case Action::deleteChar:
+        bool bef;
+        if (line != 0)
+        {
+            bef = vm.getFile().getLineWithNL(line - 1);
+        }
+
+        if (!(file.getRawLineSize(line) == 0 && file.getBeginIndexOnLine(line) == 0))
+        {
+            vm.deleteCharSimple(line, cursorX);
+            updateMaxH();
+            if (cursorX > file.getRawLineSize(line))
+            {
+                cursorX--;
+            }
+            if (line != 0){
+                if (bef != vm.getFile().getLineWithNL(line - 1)){
+                    cursorY--;
+                    cursorX = vm.getFile().getRawLineSize(line - 1) - 1;
+                }
+            }
+        }
+        break;
+    case Action::clearLine:
+        tmp = line;
+        while(file.getBeginIndexOnLine(tmp--) != 0){
+            cursorY--;
+        }
+        vm.clearLineWithFormat(line);
+        updateMaxH();
+        cursorX = 0;
+        vm.setState(State::insert);
         break;
     case Action::deleteLine:
         if (maxH == 1)
@@ -368,7 +404,7 @@ void NcurseView::updateView(int c){ //for INsert mode
         }
     }
     else{ //escape key
-        if (vm.getState() == State::insertNext && validCursor(cursorY,cursorX-1)){
+        if (validCursor(cursorY,cursorX-1)){
             cursorX--;
         }
         vm.setState(State::command);

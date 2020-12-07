@@ -8,6 +8,7 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['i'] = Action::toInsert;
     keymap['a'] = Action::toInsertNext;
     keymap['b'] = Action::toPreviousWord;
+    keymap['x'] = Action::deleteChar;
 }
 Action Keyboard::getActionMovement(int com1, int movement){
     switch(movement){
@@ -60,8 +61,17 @@ Action Keyboard::getActionHelper(int initial){
             return getActionMovement(100, buffer);
         }
         break;
-        
-    default: //simple command
+    case 99: //c case
+        buffer = getch();
+        if (buffer == 99){ //cc case
+            return Action::clearLine;
+        }
+        else //d+ motion
+        {
+            return getActionMovement(99, buffer);
+        }
+        break;
+    default: //simple command //! this is stupid, change this later
         return keymap.at(initial);
         break;
     } //not a command we have

@@ -15,6 +15,8 @@ enum Action
     deleteDown,  //d down
     toInsertNext, // a 
     toPreviousWord, //b
+    clearLine, // cc
+    deleteChar, // x
     nothing, //no command
     invalid, //this should break!
 };

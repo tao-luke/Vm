@@ -105,11 +105,24 @@ std::pair<int,int> Vm::previousWordCoord(int line, int x){
     }
 }
 
+void Vm::deleteCharSimple(int line, int x){
+    std::pair<int, int> data = file->convert_cursor(line, x);
+    if (data.first <= buffer.size()){
+        buffer[data.first].erase(buffer[data.first].begin() + data.second);
+    }
+    formatToFile(); //! we can improve efficiency here
+}
+
 void Vm::clearLine(int lineN){
     std::pair<int, int> data = file->convert_cursor(lineN, 0);
     if (data.first <= buffer.size()){
         buffer[data.first].clear();
     }
+}
+
+void Vm::clearLineWithFormat(int lineN){
+    clearLine(lineN);
+    formatToFile();
 }
 void Vm::mergeLines(int from, int to){ //add from to to and erase from
     if (from < buffer.size() && to < buffer.size()){

@@ -24,9 +24,11 @@ class Vm :public Model{
 
 public:
     void clearLine(int y);
+    void clearLineWithFormat(int y);
     std::pair<int, int> previousWordCoord(int line, int x);
     Vm(const char *name, int lineSize);
     ~Vm();
+    void deleteCharSimple(int line, int x);
     void run();
     int getActionRaw();
     void insert_newline_inFile(int line);
