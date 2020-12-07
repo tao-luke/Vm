@@ -8,7 +8,8 @@
 enum State
 {
     command,
-    insert
+    insert,
+    insertNext,
 };
 class Vm :public Model{
     //possibly store some state here.
@@ -23,7 +24,8 @@ class Vm :public Model{
 
 public:
     void clearLine(int y);
-    Vm(const char* name,int lineSize);
+    std::pair<int, int> previousWordCoord(int line, int x);
+    Vm(const char *name, int lineSize);
     ~Vm();
     void run();
     int getActionRaw();

@@ -6,6 +6,8 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap[258] = Action::down;
     keymap[261] = Action::right;
     keymap['i'] = Action::toInsert;
+    keymap['a'] = Action::toInsertNext;
+    keymap['b'] = Action::toPreviousWord;
 }
 Action Keyboard::getActionMovement(int com1, int movement){
     switch(movement){

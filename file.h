@@ -18,6 +18,7 @@ public:
     Line &getLine(int line);
     int getLineSize(int line);
     int getRawLineSize(int line);
+    Word &getLastWordOnLine(int line);
     std::vector<std::vector<char>> convertToRaw();
     bool isLineFull(int line);
     bool isLineEmpty(int line);

@@ -113,7 +113,15 @@ int File::getLineSize(int line){
 bool File::getLineWithNL(int line){
     return file[line].getWithNL();
 }
-
+Word & File::getLastWordOnLine(int line){
+    if (line < file.size()){
+        return file[line].getLastWord();
+    }
+    else
+    {
+        std::cout << " not valid line number when picking last word on line" << std::endl;
+    }
+}
 void File::setLineWithNL(int line,bool next){
     file[line].setWithNL(next);
 }

@@ -3,20 +3,26 @@
 
 #include <vector>
 #include "word.h"
+#include <map>
 class Line{
     std::vector<Word> line; //word processing vector
     std::vector<char> rawLine; //raw chars
-    int lineSize;
+    int lineLimit;
     int bufferLine;
     int fileLine;
     int beginIndex;
     bool withNL;
+    int wordCount = 0;
+    void convertToLine();
+    void convertToRaw();
+    std::map<int, int> indexToWord;
 
 public:
     Line(const std::vector<char>& line, bool withNL,int lineSize,int fileLine,int bufferLine,int beginIndex);
     std::vector<char> &getRaw();
     bool isFull();
-    void update();
+    int getPreviousWordCoord(int x);
+    Word &getLastWord();
     void print();
     int size();
     int rawSize();

@@ -89,6 +89,22 @@ void Vm::insertCharToFile(int y, int x, int c){ //convert y and x to buffer inde
     formatToFile();
 }
 
+std::pair<int,int> Vm::previousWordCoord(int line, int x){
+    if (line < file->lineTotal()){ //if line is valid line
+        int newIndex = file->getLine(line).getPreviousWordCoord(x);
+        while (newIndex == 0 && file->getBeginIndexOnLine(line) != 0 && line > 0 && !(file->getLastWordOnLine(line-1).isSpace())){
+            //repeat if we arrived at x=0 on a line, and it is NOT the beginning of raw line and its last line does NOT end with space
+            line--;
+            newIndex = file->getLine(line).getPreviousWordCoord(file->getRawLineSize(line));
+        }
+        return std::pair<int, int>(line, newIndex);
+    }
+    else
+    {
+        std::cout << "incorrect line given in picking previous word" << std::endl;
+    }
+}
+
 void Vm::clearLine(int lineN){
     std::pair<int, int> data = file->convert_cursor(lineN, 0);
     if (data.first <= buffer.size()){

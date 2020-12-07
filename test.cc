@@ -3,7 +3,7 @@
 int main(int argc, char** argv){
     initscr();
     int lineSize = getmaxx(stdscr);
-    Vm test{argv[1],lineSize};
+    Vm test{argv[1],lineSize-3};
     test.run();
 }
 
