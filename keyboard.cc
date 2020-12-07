@@ -9,6 +9,7 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['a'] = Action::toInsertNext;
     keymap['b'] = Action::toPreviousWord;
     keymap['x'] = Action::deleteChar;
+    keymap['s'] = Action::deleteCharThenInsert;
 }
 Action Keyboard::getActionMovement(int com1, int movement){
     switch(movement){

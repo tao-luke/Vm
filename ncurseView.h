@@ -22,6 +22,7 @@ class NcurseView : public View
     void moveRightDown(File &file);
     void scrollUp();
     void moveCursor(int y, int x);
+    void removeCharSimple(File & file,int line, int x);
 
 public:
     NcurseView(Vm & vm); 

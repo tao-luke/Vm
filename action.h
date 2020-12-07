@@ -17,6 +17,7 @@ enum Action
     toPreviousWord, //b
     clearLine, // cc
     deleteChar, // x
+    deleteCharThenInsert,
     nothing, //no command
     invalid, //this should break!
 };

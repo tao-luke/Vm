@@ -181,6 +181,29 @@ void NcurseView::moveRightDown(File &file){
     }
 
 }
+void NcurseView::removeCharSimple(File& file,int line, int x){
+    bool bef;
+    if (line != 0)
+    {
+        bef = vm.getFile().getLineWithNL(line - 1);
+    }
+
+    if (!(file.getRawLineSize(line) == 0 && file.getBeginIndexOnLine(line) == 0))
+    {
+        vm.deleteCharSimple(line, x);
+        updateMaxH();
+        if (x > file.getRawLineSize(line))
+        {
+            cursorX--;
+        }
+        if (line != 0){
+            if (bef != vm.getFile().getLineWithNL(line - 1)){
+                cursorY--;
+                cursorX = vm.getFile().getRawLineSize(line - 1) - 1;
+            }
+        }
+    }
+}
 void NcurseView::updateView(Action action){
     File & file = vm.getFile();
     int line = cursorY+firstDisplayLine;
@@ -262,27 +285,12 @@ void NcurseView::updateView(Action action){
         }
         break;
     case Action::deleteChar:
-        bool bef;
-        if (line != 0)
-        {
-            bef = vm.getFile().getLineWithNL(line - 1);
-        }
+        removeCharSimple(file,line, cursorX);
+        vm.setState(State::insert);
+        break;
+    case Action::deleteCharThenInsert:
+        removeCharSimple(file,line, cursorX);
 
-        if (!(file.getRawLineSize(line) == 0 && file.getBeginIndexOnLine(line) == 0))
-        {
-            vm.deleteCharSimple(line, cursorX);
-            updateMaxH();
-            if (cursorX > file.getRawLineSize(line))
-            {
-                cursorX--;
-            }
-            if (line != 0){
-                if (bef != vm.getFile().getLineWithNL(line - 1)){
-                    cursorY--;
-                    cursorX = vm.getFile().getRawLineSize(line - 1) - 1;
-                }
-            }
-        }
         break;
     case Action::clearLine:
         tmp = line;
