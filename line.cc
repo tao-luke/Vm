@@ -1,6 +1,6 @@
 #include "line.h"
 #include <iostream> //for testing
-Line::Line(const std::vector<char>& rawLine,bool withNL,int lineSize,int fileLine,int bufferLine, int beginIndex):rawLine{rawLine},withNL{withNL},lineLimit{lineSize},bufferLine{bufferLine},beginIndex{beginIndex}{
+Line::Line(const std::vector<char>& rawLine,bool withNL,int lineSize,int fileLine,int bufferLine, int beginIndex):rawLine{rawLine},lineLimit{lineSize},bufferLine{bufferLine},beginIndex{beginIndex},withNL{withNL}{
     convertToLine();
 }
 bool Line::isFull(){
@@ -50,6 +50,39 @@ int Line::getPreviousWordCoord(int x){
     return newIndex;
 }
 
+int Line::getNextWordCoord(int x){
+    int newIndex = x;
+    if (rawLine.size()== 0 || firstWordCoord() == -1){
+        return 0;
+    }
+    for (int i = x + 1; i < rawLine.size(); i++)
+    {
+        try{
+            indexToWord.at(i);
+            return i;
+        }
+        catch (const std::out_of_range &oor)
+        {
+        }
+    }
+    return -1; //cant find the next word, 
+}
+int Line::firstSpaceCoord(){
+    for (int i = 0; i < rawLine.size();i++){
+        if (rawLine[i] == ' '){
+            return i;
+        }
+    }
+    return -1;
+}
+int Line::firstWordCoord(){
+    for (int i = 0; i < rawLine.size();i++){
+        if (rawLine[i] != ' '){
+            return i;
+        }
+    }
+    return -1;
+}
 void Line::print(){ //! for debuggin
     // for(int i = 0;i<line.size();i++){
     //     if (line[i].isSpace()){

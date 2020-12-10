@@ -105,7 +105,11 @@ bool File::isLineEmpty(int line){
     return (getRawLineSize(line) == 0);
 }
 std::vector<char>& File::getLineRaw(int line){
-    return file[line].getRaw();
+    if (line < file.size()){
+        return file[line].getRaw();
+    }else{
+        std::cout << "not valid line" << std::endl;
+    }
 }
 int File::getLineSize(int line){
     return file[line].size();

@@ -7,21 +7,24 @@
 class Line{
     std::vector<Word> line; //word processing vector
     std::vector<char> rawLine; //raw chars
-    int lineLimit;
-    int bufferLine;
-    int fileLine;
-    int beginIndex;
-    bool withNL;
+    int lineLimit; //max size allowed
+    int bufferLine; //buffer line number this file line is connected with
+    int fileLine; //which line on the file this line is
+    int beginIndex; //index of first char of the buffer line this line represents
+    bool withNL; //does this lin has an enter ad the end
     int wordCount = 0;
     void convertToLine();
     void convertToRaw();
-    std::map<int, int> indexToWord;
+    std::map<int, int> indexToWord; //maps an index to word.
 
 public:
     Line(const std::vector<char>& line, bool withNL,int lineSize,int fileLine,int bufferLine,int beginIndex);
     std::vector<char> &getRaw();
     bool isFull();
+    int firstSpaceCoord();
+    int firstWordCoord();
     int getPreviousWordCoord(int x);
+    int getNextWordCoord(int x);
     Word &getLastWord();
     void print();
     int size();

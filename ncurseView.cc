@@ -76,8 +76,36 @@ bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if simple 
     }
 
     File file = vm.getFile();
-    if (cursorX > file.getRawLineSize(cursorY+firstDisplayLine)){
+    if ( cursorX >= file.getRawLineSize(cursorY+firstDisplayLine)){
+        if (!(cursorX ==0 && file.getRawLineSize(cursorY+firstDisplayLine) == 0)){
+            return false;
+        }
+
+    }
+    if (cursorX < 0)
         return false;
+    return true;
+}
+bool NcurseView::validateY(int cursorY){
+    if (cursorY < 0){
+        return false;
+    }
+
+    if (cursorY>= screenH){ //case of screen change
+        return false;
+    }
+    if (cursorY+firstDisplayLine >= maxH){
+        return false;
+    }
+    return true;
+}
+bool NcurseView::validateX(int y,int cursorX){
+    File file = vm.getFile();
+    if ( cursorX >= file.getRawLineSize(y+firstDisplayLine)){
+        if (!(cursorX ==0) || !(file.getRawLineSize(y+firstDisplayLine) == 0)){
+            return false;
+        }
+
     }
     if (cursorX < 0)
         return false;
@@ -126,75 +154,122 @@ void NcurseView::displayStatusBar(int c = -1){
     printw(f);
     if (vm.getState() == State::insert)
     {
-        printw(" int:");
+        printw(" input:");
         printw(input);
+    }else{
+        printw(" queue:");
+        for(auto &c:queue){
+            addch(c);
+        }
     }
-
 }
-void NcurseView::moveLeftUp(File & file){ //move left if possible, else if above is part of this line, move to its end
-    if (cursorX > 0)
-        cursorX--;
+std::pair<int,int> NcurseView::moveLeftUp(){ //move left if possible, else if above is part of this line, move to its end
+    int x = cursorX;
+    int y = cursorY;
+    File file = vm.getFile(); //! rewrite these 2 functions
+    if (x > 0)
+        x--;
     else
     {
-        if (firstDisplayLine+cursorY > 0 && !(file.getLineWithNL(cursorY+firstDisplayLine-1))){
-            if (cursorY >= 4 || (firstDisplayLine - 1 < 0))
-            { //if we can move the cursor at all //! make this go up at 6 space
-                if (validCursor(cursorY - 1, (file).getRawLineSize(firstDisplayLine + cursorY - 1)))
-                { //different line length move
-                    cursorY--;
-                    cursorX = (file).getRawLineSize(firstDisplayLine + cursorY);
-                }
+        int line = firstDisplayLine + y;
+        if (file.getBeginIndexOnLine(line) != 0){
+            y--;
+            x = file.getRawLineSize(line - 1);
+            if (x != 0){
+                x--;
             }
-            else
-            { //at the top already
-                firstDisplayLine--;
-                if (!(validCursor(cursorY, cursorX)))
-                {
-                    cursorX = (file).getRawLineSize(firstDisplayLine + cursorY);
-                    if (cursorX == screenW)
-                        cursorX--;
-                }
-            }
-            if (cursorX == screenW)
-                cursorX--;
         }
     }
+    return std::pair<int, int>(y, x);
 }
-void NcurseView::moveRightDown(File &file){
-    if (cursorX + 1 == screenW )
-    { //if cursorX is at the end of screen
-        if (cursorY+firstDisplayLine+1 < maxH && !(file.getLineWithNL(cursorY+firstDisplayLine))){
-            if (cursorY + 4 <= screenH || (firstDisplayLine + 1 + screenH > maxH))
-            { //if we can move the cursor at all
-                cursorY++;
-                cursorX = 0;
-            }else
-            {
-                firstDisplayLine++;
-                cursorX = 0;
-            }
+std::pair<int,int> NcurseView::moveRightDown(){
+    int x = cursorX;
+    int y = cursorY;
+    File file = vm.getFile();
+    int line = firstDisplayLine+y;
+    int max = min(screenW, file.getRawLineSize(line));
+    if (x + 1 >= max)
+    { //if x is at the end of screen
+        if (!(file.getLineWithNL(line))){
+            y++;
+            x = 0;
         }
     }
-    else if (validCursor(cursorY, cursorX + 1))
+    else
     {
-        cursorX++;
+        x++;
     }
-
+    return std::pair<int, int>(y, x);
 }
-void NcurseView::removeCharSimple(File& file,int line, int x){
+
+std::pair<int,int> NcurseView::notStrictMoveRightDown(){
+    int x = cursorX;
+    int y = cursorY;
+    File file = vm.getFile();
+    int line = firstDisplayLine+y;
+    int max = min(screenW, file.getRawLineSize(line)+1);
+    if (x + 1 >= max)
+    { //if x is at the end of screen
+        if (!(file.getLineWithNL(line))){
+            y++;
+            x = 0;
+        }else{
+            x++;
+        }
+    }
+    else
+    {
+        x++;
+    }
+    return std::pair<int, int>(y, x);
+}
+std::pair<int,int> NcurseView::moveUp(){
+    int x = cursorX;
+    int y = cursorY;
+    if (validateY(y-1)){
+        y--;
+        if (!(validateX(y,x))){
+            x = vm.getFile().getRawLineSize(cursorY + firstDisplayLine - 1);
+            if (x != 0){
+                x--;
+            }
+        }
+
+    }
+    return std::pair<int, int>(y, x);
+}
+
+std::pair<int,int> NcurseView::moveDown(){
+    int x = cursorX;
+    int y = cursorY;
+    if (validateY(y+1)){
+        y++;
+        if (!(validateX(y,x))){
+            x = vm.getFile().getRawLineSize(cursorY + firstDisplayLine + 1);
+            if (x != 0){
+                x--;
+            }
+        }
+    }
+    return std::pair<int, int>(y, x);
+}
+void NcurseView::removeCharHelper(int line, int x,bool copy){
     bool bef;
     if (line != 0)
     {
         bef = vm.getFile().getLineWithNL(line - 1);
     }
 
-    if (!(file.getRawLineSize(line) == 0 && file.getBeginIndexOnLine(line) == 0))
+    
+    if (!(vm.getFile().getRawLineSize(line) == 0 && vm.getFile().getBeginIndexOnLine(line) == 0)) //if this line is NOT empty and 
     {
-        vm.deleteCharSimple(line, x);
+        vm.deleteCharSimple(line, x,copy);
         updateMaxH();
-        if (x > file.getRawLineSize(line))
+
+        if (x >= vm.getFile().getRawLineSize(line))
         {
             cursorX--;
+            
         }
         if (line != 0){
             if (bef != vm.getFile().getLineWithNL(line - 1)){
@@ -204,62 +279,109 @@ void NcurseView::removeCharSimple(File& file,int line, int x){
         }
     }
 }
-void NcurseView::updateView(Action action){
-    File & file = vm.getFile();
-    int line = cursorY+firstDisplayLine;
-    int tmp;
+void NcurseView::updateView(std::pair<int,Action> input){
+    int c = input.first; //current command char
+    if (input.second == Action::await){
+        queue.push_back(c);
+    }else{
+        if (!(queue.empty())){
+            queue.clear();
+        }
+    }
+
+    File &file = vm.getFile(); //easy file access
+    int line = cursorY+firstDisplayLine; //line on
+    int tmp; //to copy any int
     std::pair<int, int> data;
-    switch (action)
+    switch (input.second)
     {
+    case Action::invalid:
+        break;
+    case Action::await:
+        break;
     case Action::up:
-        if (cursorY >= 4 || (firstDisplayLine - 1 < 0))
-        { //if we can move the cursor at all //! make this go up at 6 space
-            if (validCursor(cursorY - 1, cursorX))
-            { //simple move
-                cursorY--;
-            }
-            else if (validCursor(cursorY - 1, (vm.getFile()).getRawLineSize(line - 1)))
-            { //different line length move
-                cursorY--;
-                cursorX = (vm.getFile()).getRawLineSize(line);
-            }
-        }
-        else
-        { //at the top already
-            firstDisplayLine--;
-            if (!(validCursor(cursorY, cursorX)))
-            {
-                cursorX = (vm.getFile()).getRawLineSize(line);
-            }
-        }
+        data = moveUp();
+        cursorX = data.second;
+        cursorY = data.first; 
+        scrollUp();
         break;
     case Action::down:
-        if (cursorY + 4 <= screenH || (firstDisplayLine + 1 + screenH > maxH))
-        { //if we can move the cursor at all
-            if (validCursor(cursorY + 1, cursorX))
-            { //simple move
-                cursorY++;
-            }
-            else if (validCursor(cursorY + 1, (vm.getFile()).getRawLineSize(line + 1)))
-            { //different line length move
-                cursorY++;
-                cursorX = (vm.getFile()).getRawLineSize(line);
-            }
-        }
-        else
-        { //at the end already
-            firstDisplayLine++;
-            if (!(validCursor(cursorY, cursorX)))
-            {
-                cursorX = (vm.getFile()).getRawLineSize(line);
-            }
-        }
+        data = moveDown();
+        cursorX = data.second;
+        cursorY = data.first;
+        scrollDown();
         break;
     case Action::left:
-        moveLeftUp(file);
+        data = moveLeftUp();
+        cursorX = data.second;
+        cursorY = data.first;
+        scrollUp();
         break;
     case Action::right:
-        moveRightDown(file);
+        data = moveRightDown();
+        cursorX = data.second;
+        cursorY = data.first;
+        scrollDown();
+        break;
+    case Action::deleteLeft:
+
+        break;
+    case Action::deleteRight:
+        break;
+    case Action::deleteUp:
+        break;
+    case Action::deleteDown:
+        break;
+    case Action::copyCurrentLine:
+        vm.copyLineFromFile(line);
+        break;
+    case Action::copyLeft:
+        break;
+    case Action::copyRight:
+        break;
+    case Action::copyDown:
+        break;
+    case Action::copyUp:
+        break;
+    case Action::moveCursorToLineEnd:
+        data = vm.endLineCoord(line); 
+        if (data.first != -1){
+            cursorX = data.second;
+            cursorY = data.first - firstDisplayLine;
+        }
+        scrollDown();
+        vm.setState(State::insert);
+        break;
+    case Action::moveToNextChar:
+        if (!(file.getRawLineSize(line) ==0) && cursorX < file.getRawLineSize(line) ){
+            //if this line isnt empty and cursorX is valid
+            data = vm.nextCharCoord(line, cursorX, c);
+            if (data.first != -1){
+                cursorX = data.second;
+                cursorY = data.first - firstDisplayLine;
+            }
+            scrollDown();
+        }
+        break;
+    case Action::moveToPreviousChar:
+        if (!(file.getRawLineSize(line) ==0) && cursorX > 0 ){
+            //if this line isnt empty and cursorX is valid
+            data = vm.previousCharCoord(line, cursorX, c);
+            if (data.first != -1){
+                cursorX = data.second;
+                cursorY = data.first - firstDisplayLine;
+            }
+            scrollUp();
+        }
+        break;
+    case Action::moveCursorToFrontThenInsert:
+        while (file.getBeginIndexOnLine(line) != 0 && line >0){
+            line--;
+        }
+        cursorX = 0;
+        cursorY = line - firstDisplayLine;
+        scrollUp();
+        vm.setState(State::insert);
         break;
     case Action::toCommand:
         vm.setState(State::command);
@@ -267,10 +389,19 @@ void NcurseView::updateView(Action action){
     case Action::toInsert:
         vm.setState(State::insert);
         break;
+    case Action::joinThisAndNextWithSpace:
+        data = vm.joinThisAndNextWithSpace(line, cursorX);
+        if (data.first != -1){
+            cursorX = data.second;
+            cursorY = data.first - firstDisplayLine;
+        }
+        break;
     case Action::toInsertNext:
-        vm.setState(State::insertNext);
-        if (validCursor(cursorY,cursorX+1)){
-            cursorX++;
+        vm.setState(State::insert);
+        if (!(file.getRawLineSize(line) == 0)){
+            data = notStrictMoveRightDown();
+            cursorX = data.second;
+            cursorY = data.first;
         }
         break;
     case Action::toPreviousWord:
@@ -280,17 +411,26 @@ void NcurseView::updateView(Action action){
         }
         cursorY = data.first - firstDisplayLine;
         cursorX = data.second;
-        if (cursorY <= 4){
-            scrollUp();
+        scrollUp();
+        break;
+    case Action::toNextWord:
+        data = vm.nextWordCoord(line, cursorX);
+        if (cursorY == data.first-firstDisplayLine && cursorX == data.second && line+1 < file.lineTotal()){
+            data = vm.nextWordCoord(line+1, -1);
         }
+        if (data.second != -1){
+            cursorX = data.second;
+            cursorY = data.first - firstDisplayLine;
+            scrollDown();
+        }
+
         break;
     case Action::deleteChar:
-        removeCharSimple(file,line, cursorX);
-        vm.setState(State::insert);
+        removeCharHelper(line, cursorX,true);
         break;
     case Action::deleteCharThenInsert:
-        removeCharSimple(file,line, cursorX);
-
+        removeCharHelper(line, cursorX,false);
+        vm.setState(State::insert);
         break;
     case Action::clearLine:
         tmp = line;
@@ -302,33 +442,63 @@ void NcurseView::updateView(Action action){
         cursorX = 0;
         vm.setState(State::insert);
         break;
-    case Action::deleteLine:
-        if (maxH == 1)
-        {
-            vm.clearLine(line);
+    case Action::replaceCharWith:
+        if (cursorX < file.getRawLineSize(line)){ //cursorX must be in bound
+            vm.replaceCharAt(line, cursorX, c);
         }
-        else
-        {
-            vm.removeLineFromFile(line);
-            updateMaxH();
-            if (cursorY+firstDisplayLine >= maxH){
-                cursorY = maxH - firstDisplayLine - 1;
-                if (cursorY <= 4){
-                    scrollUp();
-                }
+        break;
+    case Action::insertNLUnderAndInsert:
+        if (line< maxH){
+            tmp = line+1;
+            cursorY++;
+            while (file.getBeginIndexOnLine(tmp++) != 0)
+            {
+                cursorY++;
             }
-            cursorX = 0;
+        }
+        vm.insertNLBehind(line, cursorX);
+        cursorX = 0;
+        updateMaxH();
+
+        scrollDown();
+
+        vm.setState(State::insert);
+        break;
+
+    case Action::deleteLine:
+        vm.removeLineFromFile(line);
+        updateMaxH();
+        if (cursorY+firstDisplayLine >= maxH){
+            cursorY = maxH - firstDisplayLine - 1;
+        scrollUp();
+        }
+        cursorX = 0;
+        break;
+    case Action::pasteAfterCursor:
+        data = vm.pasteAfterCursor(line, cursorX);
+        if (data.first != -1){
+            updateMaxH();
+            cursorX = data.second;
+            cursorY = data.first - firstDisplayLine;
+            if (cursorX > screenW){
+                cursorX = 1;
+                cursorY++;
+            }
+            scrollDown();
+
         }
         break;
     default:
-        printw("what is this");
         break;
     }
-        erase();
-        displayFile(); //display the original file
-        displayStatusBar();
-        moveCursor(cursorY, cursorX);
-        refresh();
+    moveCursor(cursorY, cursorX);
+}
+void NcurseView::refreshView(){
+    erase();
+    displayFile(); //display the original file
+    displayStatusBar();
+    moveCursor(cursorY, cursorX);
+    refresh();
 }
 void NcurseView::moveCursor(int y, int x){
     if (x == screenW){
@@ -338,14 +508,20 @@ void NcurseView::moveCursor(int y, int x){
     move(y, x);
 }
 void NcurseView::scrollDown(){
-    if (firstDisplayLine+1+ screenH <= maxH ){
+    while (cursorY >= screenH-4){
+        if (firstDisplayLine+1+ screenH > maxH ){
+            return;
+        }
         firstDisplayLine++;
         cursorY--;
     }
 }
 
 void NcurseView::scrollUp(){
-    if (firstDisplayLine-1 >=0){
+    while (cursorY <= 4){
+        if (firstDisplayLine-1 < 0){
+            return;
+        }
         firstDisplayLine--;
         cursorY++;
     }
@@ -385,10 +561,7 @@ void NcurseView::updateView(int c){ //for INsert mode
                 }
             }
             updateMaxH();
-            if (cursorY <= 4)
-            {
-                scrollUp();
-            }
+            scrollUp();
         }
         else
         {
@@ -406,9 +579,7 @@ void NcurseView::updateView(int c){ //for INsert mode
                     cursorY++;
                 }
             }
-            if (cursorY >= screenH-4){
-                scrollDown();
-            }
+            scrollDown();
         }
     }
     else{ //escape key
@@ -416,6 +587,10 @@ void NcurseView::updateView(int c){ //for INsert mode
             cursorX--;
         }
         vm.setState(State::command);
+        displayStatusBar(c);
+        moveCursor(cursorY, cursorX);
+        refresh();
+        return;
     }
     erase();
     displayFile(); //display the original file

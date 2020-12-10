@@ -10,6 +10,15 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['b'] = Action::toPreviousWord;
     keymap['x'] = Action::deleteChar;
     keymap['s'] = Action::deleteCharThenInsert;
+    keymap['o'] = Action::insertNLUnderAndInsert;
+    keymap['p'] = Action::pasteAfterCursor;
+    keymap['A'] = Action::moveCursorToLineEnd;
+    keymap['w'] = Action::toNextWord;
+    keymap['I'] = Action::moveCursorToFrontThenInsert;
+    keymap['J'] = Action::joinThisAndNextWithSpace;
+    int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    std::set<int> sample(tmp,tmp+16);
+    awaitKey = std::move(sample);
 }
 Action Keyboard::getActionMovement(int com1, int movement){
     switch(movement){
@@ -46,14 +55,12 @@ Action Keyboard::getActionMovement(int com1, int movement){
                 }
             break;
         }
-    return Action::nothing;
+    return Action::invalid;
 }
-Action Keyboard::getActionHelper(int initial){
-    int buffer;
+Action Keyboard::getActionHelper(int initial,int buffer){
     switch (initial) //check command
     {
     case 100: //d case
-        buffer = getch();
         if (buffer == 100){ //dd case
             return Action::deleteLine;
         }
@@ -63,34 +70,57 @@ Action Keyboard::getActionHelper(int initial){
         }
         break;
     case 99: //c case
-        buffer = getch();
         if (buffer == 99){ //cc case
             return Action::clearLine;
         }
-        else //d+ motion
+        else //c+ motion
         {
             return getActionMovement(99, buffer);
         }
         break;
-    default: //simple command //! this is stupid, change this later
-        return keymap.at(initial);
+    case 121: //y case
+        if (buffer == 121){ //yy case
+            return Action::copyCurrentLine;
+        }
+        else //y+ motion
+        {
+            return getActionMovement(121, buffer);
+        }
         break;
-    } //not a command we have
-    return Action::nothing;
+    case 102: //f case
+        return Action::moveToNextChar;
+        break;
+    case 70: //F case
+        return Action::moveToPreviousChar;
+    case 114: //r case
+        return Action::replaceCharWith;
+        break;
+    default: 
+        return Action::invalid;
+        break;
+    } 
 }
 
-Action Keyboard::getAction() {
+std::pair<int,Action> Keyboard::getAction() {
     int initial= 0;
-    Action a;
     initial = getch();
-    try{
-        a = getActionHelper(initial);
+    if(queue.empty()){ //if queue is clear
+        if (awaitKey.find(initial) != awaitKey.end()){ //if we find its a await needed command
+            if (!(initial >= '0' && initial <= '9')){
+                queue.push_back(initial);
+            }
+            return std::pair<int, Action>(initial, Action::await);
+        } //if its a simple command
+        try{
+            return std::pair<int,Action>(initial,keymap.at(initial));
+        }catch(...){
+            return std::pair<int, Action>(-1, Action::invalid);
+        }
+    }else{ //return combo command
+        int tmp = queue.front();
+        queue.clear();
+        return std::pair<int, Action>(initial, getActionHelper(tmp, initial));
     }
-    catch (...)
-    {
-        return Action::invalid;
-    }
-    return a; 
 }
 
 int Keyboard::getActionRaw(){

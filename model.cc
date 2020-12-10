@@ -13,7 +13,7 @@ void Model::addView(unique_ptr<View> c){
     view = std::move(c);
 }
 
-Action Model::getAction(){
+std::pair<int,Action> Model::getAction(){
     return control->getAction();
 }
 
@@ -25,6 +25,6 @@ void Model::updateView(int c){
     view->updateView(c);
 }
 
-void Model::updateView(Action action){
-    view->updateView(action); 
+void Model::updateView(std::pair<int,Action> data){
+    view->updateView(data); 
 }

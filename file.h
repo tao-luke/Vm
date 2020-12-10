@@ -26,11 +26,6 @@ public:
     std::pair<int, int> convert_cursor(int y, int x);
     bool getLineWithNL(int line);
     void setLineWithNL(int line,bool next);
-    // void insertWord(int cursorY, int cursorX, const vector<char>& word);
-    // void deleteFrom(int index);
-    // int find(vector<char> word);
-    // void join(int cursorY, int cursorX);
-    // void deleteLine();
 };
 
 #endif

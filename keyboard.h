@@ -5,16 +5,20 @@
 #include "action.h"
 #include <iostream>
 #include <map>
+#include <vector>
 #include <set>
+
 class Keyboard : public Controller
 {
     std::map<int, Action> keymap;
-    Action getActionHelper(int initial);
+    Action getActionHelper(int initial,int buffer);
     Action getActionMovement(int initial,int movement);
+    std::set<int> awaitKey;
+    std::vector<int> queue;
 
 public:
     Keyboard();
-    Action getAction() override;
+    std::pair<int,Action> getAction() override;
     ~Keyboard(){};
     int getActionRaw() override;
 };
