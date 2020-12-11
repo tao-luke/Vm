@@ -228,13 +228,21 @@ std::pair<int,int> NcurseView::moveUp(){
     int y = cursorY;
     if (validateY(y-1)){
         y--;
-        if (!(validateX(y,x))){
-            x = vm.getFile().getRawLineSize(cursorY + firstDisplayLine - 1);
-            if (x != 0){
-                x--;
-            }
+        while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0)
+        {
+            y--;
         }
 
+        if (!(validateX(y,x))){
+            std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
+            if (data.first != -1){
+                x = data.second;
+                if (x != 0){
+                    x--;
+                }
+                y = data.first - firstDisplayLine;
+            }
+        }
     }
     return std::pair<int, int>(y, x);
 }
@@ -244,10 +252,18 @@ std::pair<int,int> NcurseView::moveDown(){
     int y = cursorY;
     if (validateY(y+1)){
         y++;
+        while (validateY(y+1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0)
+        {
+            y++;
+        }
         if (!(validateX(y,x))){
-            x = vm.getFile().getRawLineSize(cursorY + firstDisplayLine + 1);
-            if (x != 0){
-                x--;
+            std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
+            if (data.first != -1){
+                x = data.second;
+                if (x != 0){
+                    x--;
+                }
+                y = data.first - firstDisplayLine;
             }
         }
     }
@@ -268,7 +284,10 @@ void NcurseView::removeCharHelper(int line, int x,bool copy){
 
         if (x >= vm.getFile().getRawLineSize(line))
         {
-            cursorX--;
+            if (x != 0){
+                cursorX--;
+            }
+
             
         }
         if (line != 0){
@@ -288,8 +307,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             queue.clear();
         }
     }
-
-    File &file = vm.getFile(); //easy file access
+    File &file = vm.getFile();           //easy file access
     int line = cursorY+firstDisplayLine; //line on
     int tmp; //to copy any int
     std::pair<int, int> data;
@@ -323,27 +341,144 @@ void NcurseView::updateView(std::pair<int,Action> input){
         cursorY = data.first;
         scrollDown();
         break;
+    case Action::clearLine:
+        tmp = line;
+        while(file.getBeginIndexOnLine(tmp--) != 0){
+            cursorY--;
+        }
+        vm.clearLineWithFormat(line);
+        updateMaxH();
+        cursorX = 0;
+        vm.setState(State::insert);
+        break;
+    case Action::deleteLeftNC:
+        data = moveLeftUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            cursorX = data.second;
+            cursorY = data.first;
+            vm.deleteCharSimple(line, cursorX,false);
+        }
+        vm.setState(State::insert);
+        break;
+    case Action::deleteRightNC:
+        removeCharHelper(line, cursorX,false);
+        vm.setState(State::insert);
+        break;
+    case Action::deleteUpNC:
+        data = moveUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.removeLineFromFile(data.first + firstDisplayLine, false);
+            vm.removeLineFromFile(data.first + firstDisplayLine, false);
+            updateMaxH();
+            
+            cursorX = data.second;
+            cursorY = data.first;
+            while (!(validateY(cursorY))){
+                cursorY--;
+            }
+        }
+        scrollUp();
+        vm.setState(State::insert);
+        break;
+    case Action::deleteDownNC:
+        data = moveDown();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.removeLineFromFile(data.first + firstDisplayLine, false);
+            vm.removeLineFromFile(line,false);
+            updateMaxH();
+            cursorX = data.second;
+            cursorY = data.first;
+            while (!(validateY(cursorY))){
+                cursorY--;
+            }
+        }
+        scrollDown();
+        vm.setState(State::insert);
+        break;
     case Action::deleteLeft:
-
+        data = moveLeftUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            cursorX = data.second;
+            cursorY = data.first;
+            vm.deleteCharSimple(line, cursorX,true);
+        }
         break;
     case Action::deleteRight:
+        removeCharHelper(line, cursorX,true);
         break;
     case Action::deleteUp:
+        data = moveUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.removeLineFromFile(data.first + firstDisplayLine, false);
+            vm.removeLineFromFile(data.first + firstDisplayLine, true);
+            updateMaxH();
+            
+            cursorX = data.second;
+            cursorY = data.first;
+            while (!(validateY(cursorY))){
+                cursorY--;
+            }
+        }
+        scrollUp();
         break;
     case Action::deleteDown:
+        data = moveDown();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.removeLineFromFile(data.first + firstDisplayLine, false);
+            vm.removeLineFromFile(line,true);
+            updateMaxH();
+            cursorX = data.second;
+            cursorY = data.first;
+            while (!(validateY(cursorY))){
+                cursorY--;
+            }
+        }
+        scrollDown();
         break;
     case Action::copyCurrentLine:
-        vm.copyLineFromFile(line);
+        vm.copyLineFromFile(line,false);
         break;
     case Action::copyLeft:
+        data = moveLeftUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            cursorX = data.second;
+            cursorY = data.first;
+            vm.copyChar(line, cursorX);
+        }
         break;
     case Action::copyRight:
+        vm.copyChar(line,cursorX);
         break;
     case Action::copyDown:
+        data = moveDown();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.copyLineFromFile(line,false);
+            vm.copyLineFromFile(line + 1,true);
+        }
         break;
     case Action::copyUp:
+        data = moveUp();
+        if (!(cursorX == data.second && cursorY == data.first)){
+            vm.copyLineFromFile(line-1,false);
+            vm.copyLineFromFile(line ,true);
+            updateMaxH();
+            cursorX = data.second;
+            cursorY = data.first;
+        }
+        scrollUp();
         break;
-    case Action::moveCursorToLineEnd:
+    case Action::toLastChar:
+        data = vm.endLineCoord(line); 
+        if (data.first != -1){
+            cursorX = data.second;
+            if (cursorX != 0){
+                cursorX--;
+            }
+            cursorY = data.first - firstDisplayLine;
+        }
+        scrollDown();
+        break;
+    case Action::moveCursorToLineEndThenInsert:
         data = vm.endLineCoord(line); 
         if (data.first != -1){
             cursorX = data.second;
@@ -374,6 +509,14 @@ void NcurseView::updateView(std::pair<int,Action> input){
             scrollUp();
         }
         break;
+    case Action::toFirstChar:
+        while (file.getBeginIndexOnLine(line) != 0 && line >0){
+            line--;
+        }
+        cursorX = 0;
+        cursorY = line - firstDisplayLine;
+        scrollUp();
+        break;
     case Action::moveCursorToFrontThenInsert:
         while (file.getBeginIndexOnLine(line) != 0 && line >0){
             line--;
@@ -395,6 +538,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             cursorX = data.second;
             cursorY = data.first - firstDisplayLine;
         }
+        updateMaxH();
         break;
     case Action::toInsertNext:
         vm.setState(State::insert);
@@ -425,21 +569,16 @@ void NcurseView::updateView(std::pair<int,Action> input){
         }
 
         break;
+    case Action::toFirstNonBlank:
+        data = vm.firstNonBlankCoord(line, cursorX);
+        cursorX = data.second;
+        cursorY = data.first - firstDisplayLine;
+        break;
     case Action::deleteChar:
         removeCharHelper(line, cursorX,true);
         break;
     case Action::deleteCharThenInsert:
         removeCharHelper(line, cursorX,false);
-        vm.setState(State::insert);
-        break;
-    case Action::clearLine:
-        tmp = line;
-        while(file.getBeginIndexOnLine(tmp--) != 0){
-            cursorY--;
-        }
-        vm.clearLineWithFormat(line);
-        updateMaxH();
-        cursorX = 0;
         vm.setState(State::insert);
         break;
     case Action::replaceCharWith:
@@ -451,7 +590,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
         if (line< maxH){
             tmp = line+1;
             cursorY++;
-            while (file.getBeginIndexOnLine(tmp++) != 0)
+            while (tmp < maxH && file.getBeginIndexOnLine(tmp++) != 0)
             {
                 cursorY++;
             }
@@ -464,9 +603,21 @@ void NcurseView::updateView(std::pair<int,Action> input){
 
         vm.setState(State::insert);
         break;
-
+    case Action::insertNLAboveAndInsert:
+        tmp = line;
+        while (file.getBeginIndexOnLine(tmp) != 0)
+        {
+            tmp--;
+        }
+        vm.insertNLAbove(line, cursorX);
+        cursorX = 0;
+        cursorY = tmp - firstDisplayLine;
+        updateMaxH();
+        scrollUp();
+        vm.setState(State::insert);
+        break;
     case Action::deleteLine:
-        vm.removeLineFromFile(line);
+        vm.removeLineFromFile(line,false);
         updateMaxH();
         if (cursorY+firstDisplayLine >= maxH){
             cursorY = maxH - firstDisplayLine - 1;
@@ -485,7 +636,14 @@ void NcurseView::updateView(std::pair<int,Action> input){
                 cursorY++;
             }
             scrollDown();
-
+        }
+        break;
+    case Action::pasteBeforeCursor:
+        data = vm.pasteBeforeCursor(line, cursorX);
+        if (data.first != -1){
+            updateMaxH();
+            cursorX = data.second;
+            cursorY = data.first - firstDisplayLine;
         }
         break;
     default:

@@ -12,10 +12,15 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['s'] = Action::deleteCharThenInsert;
     keymap['o'] = Action::insertNLUnderAndInsert;
     keymap['p'] = Action::pasteAfterCursor;
-    keymap['A'] = Action::moveCursorToLineEnd;
+    keymap['A'] = Action::moveCursorToLineEndThenInsert;
     keymap['w'] = Action::toNextWord;
     keymap['I'] = Action::moveCursorToFrontThenInsert;
     keymap['J'] = Action::joinThisAndNextWithSpace;
+    keymap['O'] = Action::insertNLAboveAndInsert;
+    keymap['P'] = Action::pasteBeforeCursor;
+    keymap['S'] = Action::clearLine;
+    keymap['^'] = Action::toFirstNonBlank;
+    keymap['$'] = Action::toLastChar;
     int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
     std::set<int> sample(tmp,tmp+16);
     awaitKey = std::move(sample);
@@ -28,6 +33,12 @@ Action Keyboard::getActionMovement(int com1, int movement){
                     return Action::deleteDown;
                     break;
                 //!more cases here
+                case 121:
+                    return Action::copyDown;
+                    break;
+                case 99:
+                    return Action::deleteDownNC;
+                    break;
                 }
                 break;
         case 259: //up
@@ -35,7 +46,12 @@ Action Keyboard::getActionMovement(int com1, int movement){
                 case 100:
                     return Action::deleteUp;
                     break;
-                //!more cases here
+                case 121:
+                    return Action::copyUp;
+                    break;
+                case 99:
+                    return Action::deleteUpNC;
+                    break;
                 }
                 break;
         case 260: //left
@@ -43,7 +59,12 @@ Action Keyboard::getActionMovement(int com1, int movement){
                 case 100:
                     return Action::deleteLeft;
                     break;
-                //!more cases here
+                case 121:
+                    return Action::copyLeft;
+                    break;
+                case 99:
+                    return Action::deleteLeftNC;
+                    break;
                 }
             break;
         case 261: //right
@@ -51,7 +72,12 @@ Action Keyboard::getActionMovement(int com1, int movement){
                 case 100:
                     return Action::deleteRight;
                     break;
-                //!more cases here
+                case 121:
+                    return Action::copyRight;
+                    break;
+                case 99:
+                    return Action::deleteRightNC;
+                    break;
                 }
             break;
         }

@@ -44,7 +44,7 @@ void Vm::formatToFile(){
     file = std::move(std::make_unique<File>(buffer,lineSize));
 }
 Vm::Vm(const char* name,int lineSize):state{State::command},lineSize{lineSize}{
-
+    
     readFile(name);
 
     formatToFile();
@@ -74,17 +74,29 @@ void Vm::insertNLBehind(int line, int x){
     buffer.insert(buffer.begin() + data.first + 1, std::vector<char>());
     formatToFile();
 }
+
+void Vm::insertNLAbove(int line,int x){
+    std::pair<int,int> data;
+    try{
+        data = validateAndConvert(line, x);
+    }catch(...){
+        return;
+    }
+    buffer.insert(buffer.begin() + data.first, std::vector<char>());
+    formatToFile();
+}
+
 void Vm::formatToRaw(){
     buffer = std::move(file->convertToRaw());
 }
-void Vm::removeLineFromFile(int lineN){ 
+void Vm::removeLineFromFile(int lineN, bool savePre){ 
     std::pair<int,int> data;
     try{
         data = validateAndConvert(lineN, 0);
     }catch(...){
         return;
     }
-    copyToClipboard(buffer[data.first]);
+    copyToClipboard(buffer[data.first],savePre);
     inLinePaste = false; //we took a whole line
     if (file->lineTotal() == 1)
     {
@@ -106,14 +118,14 @@ std::pair<int,int> Vm::endLineCoord(int line){
     }
     return std::pair<int, int>(line, file->getRawLineSize(line));
 }
-void Vm::copyLineFromFile(int lineN){
+void Vm::copyLineFromFile(int lineN,bool keepPrev){
     std::pair<int,int> data;
     try{
         data = validateAndConvert(lineN, 0);
     }catch(...){
         return;
     }
-    copyToClipboard(buffer[data.first]);
+    copyToClipboard(buffer[data.first],keepPrev);
     inLinePaste = false;
 }
 
@@ -154,15 +166,54 @@ const std::pair<int,int> Vm::pasteAfterCursor(int line, int x){
         for (auto &l : clipboard)
         {
             ite++;
-            x = 0;
             ite = buffer.insert(ite, l);
         }
+        x = 0;
     }
     formatToFile();
     return std::pair<int, int>(newLine, x);
 }
-void Vm::copyToClipboard(const std::vector<char> target){
-    if (multi.empty()){
+const std::pair<int, int> Vm::pasteBeforeCursor(int line, int x){
+    std::pair<int,int> data;
+    try{ //validate the pos given
+        data = validateAndConvert(line, x);
+    }catch(...){
+        return std::pair<int, int>(-1, -1);
+    }
+    int newLine = line;
+    if (clipboard.empty()){ //if nothing to paste
+        return std::pair<int, int>(-1, -1);// 
+    }
+    if (inLinePaste) //paste inline
+    {
+        auto ite = buffer[data.first].begin() + data.second;
+        for (auto &c : clipboard[0])
+        {
+            ite = buffer[data.first].insert(ite, c);
+            ++ite;
+        }
+    }
+    else //paste before this line
+    {
+        auto ite = buffer.begin() + data.first;
+        newLine = line;
+        while (newLine >0 && file->getBeginIndexOnLine(newLine) != 0){
+            newLine--;
+        }
+
+        for (auto &l : clipboard)
+        {
+            ite = buffer.insert(ite, l);
+            ite++;
+        }
+        x = 0;
+    }
+    formatToFile();
+    return std::pair<int, int>(newLine, x);
+}
+
+void Vm::copyToClipboard(const std::vector<char> target,bool savePrev){
+    if (multi.empty() && !savePrev){
         clipboard.clear();
     }
     if (inLinePaste){ //if its inline, we put them all int he front vector of char
@@ -176,6 +227,18 @@ void Vm::copyToClipboard(const std::vector<char> target){
         clipboard.push_back(target);
     }
 
+}
+void Vm::copyChar(int line, int x){
+    std::pair<int,int> data;
+    try{
+        data = validateAndConvert(line, x);
+    }catch(...){
+        return;
+    }
+    inLinePaste = true;
+    std::vector<char> tmp;
+    tmp.push_back(*(buffer[data.first].begin() + data.second));
+    copyToClipboard(std::move(tmp), false);
 }
 void Vm::insertCharToFile(int y, int x, int c){ //convert y and x to buffer index and insert accdingly
     std::pair<int,int> data;
@@ -226,7 +289,7 @@ std::pair<int,int> Vm::nextWordCoord(int line,int x){
                 line++;
                 int firstS = file->getLine(line).firstSpaceCoord();
                 if (firstS == -1){
-                    newIndex == -1;
+                    newIndex = -1;
                 }else{
                     newIndex = file->getLine(line).getNextWordCoord(firstS);
                 }
@@ -243,6 +306,23 @@ std::pair<int,int> Vm::nextWordCoord(int line,int x){
     {
         std::cout << "incorrect line given in picking previous word" << std::endl;
     }
+}
+const std::pair<int,int> Vm::firstNonBlankCoord(int line, int x){
+    while(line > 0 && file->getBeginIndexOnLine(line) != 0){
+        line--;
+    }
+    x = file->getLine(line).firstWordCoord();
+    while (line+1 <file->lineTotal()&& x == -1 && !(file->getLineWithNL(line))){
+        line++;
+        x = file->getLine(line).firstWordCoord();
+    }
+    if (x == -1){
+        x = file->getRawLineSize(line);
+        if (!(x == 0)){
+            x--;
+        }
+    }
+    return std::pair<int, int>(line, x);
 }
 bool Vm::validate(int vecline,int vecindex){
     if (vecline > buffer.size() || vecindex > buffer[vecline].size()){
@@ -263,7 +343,7 @@ void Vm::deleteCharSimple(int line, int x,bool copyIt){
         inLinePaste = true;
         std::vector<char> tmp;
         tmp.push_back(*ite);
-        copyToClipboard(std::move(tmp));
+        copyToClipboard(std::move(tmp),false);
     }
     buffer[data.first].erase(ite);
     formatToFile(); //! we can improve efficiency here
@@ -425,7 +505,13 @@ void Vm::run(){
         if (state == State::command){
             data = getAction();
             if (data.first >= '0' && data.first <= '9'){
-                multi.push_back(static_cast<char>(data.first));
+                if (getMulti() == 0 && data.first == '0'){
+                    data.second = Action::toFirstChar;
+                }
+                else
+                {
+                    multi.push_back(static_cast<char>(data.first));
+                }
             }
             if (getMulti() != 0 && data.second != Action::await){
                 int tmp = getMulti();
