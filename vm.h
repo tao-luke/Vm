@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include "file.h"
+#include "event.h"
 #include <utility>
 #include <string>
 #include <stack>
@@ -21,8 +22,9 @@ class Vm :public Model{
     unique_ptr<File> file;
     std::vector<std::vector<char>> clipboard;
     std::string multi;
-    std::stack<Action> undoStack;
+    std::stack<Event> undoStack;
     bool inLinePaste = false;
+    bool skipOneRecord = false;
     int lineSize = 0;
     void readFile(const char *name);
     void formatToFile();
@@ -31,13 +33,16 @@ class Vm :public Model{
     void copyToClipboard(const std::vector<char> target,bool overide);
     bool validate(int vecline, int vecindex);
     std::pair<int, int> validateAndConvert(int line, int x);
+    void clearLine(int first);
 
 public:
+    void setSkipRecord(bool next);
+    bool isUndoStackEmpty();
+    void recordCursor(int cursorY, int firstDisplayLine, int cursorX, int maxH, Action action);
     int getMulti();
-    const std::pair<int, int> pasteAfterCursor(int line, int x);
-    const std::pair<int, int> pasteBeforeCursor(int line, int x);
+    const std::pair<int, int> pasteAfterCursor(int cursorY,int firstDisplayLine,int maxH,int cursorX);
+    const std::pair<int, int> pasteBeforeCursor(int cursorY,int firstDisplayLine,int maxH, int cursorX);
     std::pair<int, int> endLineCoord(int lineN);
-    void clearLine(int y);
     void clearLineWithFormat(int y);
     std::pair<int, int> previousWordCoord(int line, int x);
     std::pair<int, int> nextWordCoord(int line, int x);
@@ -61,6 +66,8 @@ public:
     void copyLineFromFile(int lineN,bool override);
     void copyChar(int line, int x);
     File &getFile();
+    std::vector<int> handleUndo();
+    std::vector<std::vector<char>> &getBuffer();
 };
 
 #endif

@@ -1,7 +1,7 @@
 CXX=g++
 CXXFLAGS=-std=c++14 -Wall -MMD
 EXEC=vm
-OBJECTS=test.o ncurseView.o model.o file.o line.o vm.o keyboard.o 
+OBJECTS=test.o ncurseView.o model.o event.o file.o line.o vm.o keyboard.o 
 DEPENDS=${OBJECTS:.o=.d}
 
 ${EXEC}:${OBJECTS}

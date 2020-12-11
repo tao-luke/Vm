@@ -21,6 +21,7 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['S'] = Action::clearLine;
     keymap['^'] = Action::toFirstNonBlank;
     keymap['$'] = Action::toLastChar;
+    keymap['u'] = Action::undo;
     int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
     std::set<int> sample(tmp,tmp+16);
     awaitKey = std::move(sample);

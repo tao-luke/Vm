@@ -29,7 +29,7 @@ class NcurseView : public View
     bool validateX(int y,int x);
     void scrollUp();
     void moveCursor(int y, int x);
-    void removeCharHelper(int line, int x,bool copy);
+    void removeCharHelper(int line, int x,bool copy,Action action);
 
 
 public:

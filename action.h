@@ -30,6 +30,7 @@ enum Action
     moveToNextChar, //f(c)
     moveToPreviousChar, // F(c)
     replaceCharWith, // r(c)
+    undo, //u
     pasteAfterCursor, //p
     pasteBeforeCursor, //P
     copyCurrentLine, //yy

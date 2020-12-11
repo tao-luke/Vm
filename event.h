@@ -4,62 +4,24 @@
 #include "action.h"
 #include <vector>
 #include <memory>
-#include "vm.h"
-class Event{
+class Vm;
+class Event
+{
     int cursorY;
     int firstDisplayLine;
     int cursorX;
+    int maxH;
     Action action;
-    std::vector<std::vector<char>> bufferOld; //optional.
-    std::vector<char> content;
+    std::vector<std::vector<char>> content;
     Vm &vm;
+    std::pair<int, int> data;
+    int pasteLN;
 
 public:
-    Event(int cursorY, int firstDisplayLine, int cursorX, Action action, std::vector<char> content, Vm & vm) : cursorY{cursorY}, firstDisplayLine{firstDisplayLine}, cursorX{cursorX}, action{action},content{content},vm{vm}{};
-    void setBufferOld(std::vector<std::vector<char>> snapshot){
-        bufferOld = snapshot;
-    }
-    void undo(){
-        switch(action){
-            case joinThisAndNextWithSpace:
-                break;
-            case deleteLine:
-                break;
-            case deleteLeft:
-                break;
-            case deleteRight:
-                break;
-            case deleteUp:
-                break;
-            case deleteDown:
-                break;
-            case deleteLeftNC:
-                break;
-            case deleteRightNC:
-                break;
-            case deleteUpNC:
-                break;
-            case deleteDownNC:
-                break;
-            case clearLine:
-                break;
-            case deleteChar:
-                break;
-            case deleteCharThenInsert:
-                break;
-            case replaceCharWith:
-                break;
-            case pasteAfterCursor:
-                break;
-            case pasteBeforeCursor:
-                break;
-            case insertNLAboveAndInsert:
-                break;
-            case insertNLUnderAndInsert:
-                break;
-            
-            }
-    }
+    Event(int cursorY, int firstDisplayLine, int cursorX,int maxH, Action action, Vm & vm) : cursorY{cursorY}, firstDisplayLine{firstDisplayLine}, cursorX{cursorX},maxH{maxH}, action{action},vm{vm}{};
+    void setContent(std::vector<std::vector<char>> content, std::pair<int, int> data, int pasteLN = 0);
+    std::vector<int> undo();
+    void contentPushback(std::vector<char> pushedback);
 };
 
 #endif

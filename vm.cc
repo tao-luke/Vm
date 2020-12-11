@@ -55,6 +55,9 @@ Vm::Vm(const char* name,int lineSize):state{State::command},lineSize{lineSize}{
 
 void Vm::setState(State state){
     this->state = state;
+    if (state == State::insert){
+        //! start from here, make sure to save the entire buffer for this.
+    }
 }
 
 State Vm::getState(){
@@ -71,6 +74,9 @@ void Vm::insertNLBehind(int line, int x){
     }catch(...){
         return;
     }
+
+    undoStack.top().setContent(std::vector<std::vector<char>>(),data); //prepare for undo
+
     buffer.insert(buffer.begin() + data.first + 1, std::vector<char>());
     formatToFile();
 }
@@ -82,12 +88,18 @@ void Vm::insertNLAbove(int line,int x){
     }catch(...){
         return;
     }
+
+    undoStack.top().setContent(std::vector<std::vector<char>>(),data); //prepare for undo
+
     buffer.insert(buffer.begin() + data.first, std::vector<char>());
     formatToFile();
 }
 
 void Vm::formatToRaw(){
     buffer = std::move(file->convertToRaw());
+}
+void Vm::setSkipRecord(bool next){
+    skipOneRecord = next;
 }
 void Vm::removeLineFromFile(int lineN, bool savePre){ 
     std::pair<int,int> data;
@@ -96,11 +108,20 @@ void Vm::removeLineFromFile(int lineN, bool savePre){
     }catch(...){
         return;
     }
+    if (!(skipOneRecord)){ //for commands that runs this twice, we dont need to update twice.
+        std::vector<std::vector<char>> tmp;
+        tmp.push_back(buffer[data.first]);
+        undoStack.top().setContent(std::move(tmp),data); //prepare for undo
+    }else{
+        undoStack.top().contentPushback(buffer[data.first]);
+        skipOneRecord = false;
+    }
+
     copyToClipboard(buffer[data.first],savePre);
     inLinePaste = false; //we took a whole line
     if (file->lineTotal() == 1)
     {
-        clearLine(lineN);
+        clearLine(data.first);
     }
     else
     {
@@ -129,8 +150,9 @@ void Vm::copyLineFromFile(int lineN,bool keepPrev){
     inLinePaste = false;
 }
 
-const std::pair<int,int> Vm::pasteAfterCursor(int line, int x){
-    std::pair<int,int> data;
+const std::pair<int,int> Vm::pasteAfterCursor(int cursorY,int firstDisplayLine,int maxH,int x){
+    int line = firstDisplayLine + cursorY;
+    std::pair<int, int> data;
     try{ //validate the pos given
         data = validateAndConvert(line, x);
     }catch(...){
@@ -141,8 +163,14 @@ const std::pair<int,int> Vm::pasteAfterCursor(int line, int x){
     if (clipboard.empty()){ //if nothing to paste
         return std::pair<int, int>(-1, -1);// 
     }
+
+    recordCursor(cursorY, firstDisplayLine, x, maxH,Action::pasteAfterCursor);
+
     if (inLinePaste) //paste inline
     {
+        std::vector<std::vector<char>> tmp;
+        tmp.push_back(buffer[data.first]);
+        undoStack.top().setContent(tmp,data,0); //prepare for undo
         auto ite = buffer[data.first].begin() + data.second;
         if (!(buffer[data.first].empty())){
             ite++;
@@ -158,6 +186,7 @@ const std::pair<int,int> Vm::pasteAfterCursor(int line, int x){
     }
     else //paste after this line
     {
+        undoStack.top().setContent(std::vector<std::vector<char>>(),data,clipboard.size()); //prepare for undo
         auto ite = buffer.begin() + data.first;
         newLine = line+1;
         while (newLine < file->lineTotal() && file->getBeginIndexOnLine(newLine) != 0){
@@ -173,8 +202,9 @@ const std::pair<int,int> Vm::pasteAfterCursor(int line, int x){
     formatToFile();
     return std::pair<int, int>(newLine, x);
 }
-const std::pair<int, int> Vm::pasteBeforeCursor(int line, int x){
+const std::pair<int, int> Vm::pasteBeforeCursor(int cursorY,int firstDisplayLine,int maxH, int x){
     std::pair<int,int> data;
+    int line = firstDisplayLine + cursorY;
     try{ //validate the pos given
         data = validateAndConvert(line, x);
     }catch(...){
@@ -184,8 +214,15 @@ const std::pair<int, int> Vm::pasteBeforeCursor(int line, int x){
     if (clipboard.empty()){ //if nothing to paste
         return std::pair<int, int>(-1, -1);// 
     }
+
+    recordCursor(cursorY, firstDisplayLine, x, maxH,Action::pasteBeforeCursor);
+
+
     if (inLinePaste) //paste inline
     {
+        std::vector<std::vector<char>> tmp;
+        tmp.push_back(buffer[data.first]);
+        undoStack.top().setContent(tmp,data,0); //prepare for undo
         auto ite = buffer[data.first].begin() + data.second;
         for (auto &c : clipboard[0])
         {
@@ -195,6 +232,7 @@ const std::pair<int, int> Vm::pasteBeforeCursor(int line, int x){
     }
     else //paste before this line
     {
+        undoStack.top().setContent(std::vector<std::vector<char>>(),data,clipboard.size());
         auto ite = buffer.begin() + data.first;
         newLine = line;
         while (newLine >0 && file->getBeginIndexOnLine(newLine) != 0){
@@ -337,6 +375,11 @@ void Vm::deleteCharSimple(int line, int x,bool copyIt){
     }catch(...){
         return;
     }
+
+    std::vector<std::vector<char>> tmp;
+    tmp.push_back(buffer[data.first]);
+    undoStack.top().setContent(std::move(tmp),data); //prepare for undo
+
     auto ite = buffer[data.first].begin() + data.second;
     if (copyIt)
     {
@@ -348,20 +391,30 @@ void Vm::deleteCharSimple(int line, int x,bool copyIt){
     buffer[data.first].erase(ite);
     formatToFile(); //! we can improve efficiency here
 }
+bool Vm::isUndoStackEmpty(){
+    return (undoStack.empty());
+}
+void Vm::recordCursor(int cursorY,int firstDisplayLine, int cursorX, int maxH, Action action)
+{
+    undoStack.push(std::move(Event(cursorY, firstDisplayLine, cursorX, maxH, action, *this)));
+}
+void Vm::clearLine(int first){
+    buffer[first].clear();
+}
 
-void Vm::clearLine(int lineN){
+void Vm::clearLineWithFormat(int lineN){
     std::pair<int,int> data;
     try{
         data = validateAndConvert(lineN, 0);
     }catch(...){
         return;
     }
+    
+    std::vector<std::vector<char>> tmp;
+    tmp.push_back(buffer[data.first]);
+    undoStack.top().setContent(std::move(tmp),data); //prepare for undo
 
-    buffer[data.first].clear();
-}
-
-void Vm::clearLineWithFormat(int lineN){
-    clearLine(lineN);
+    clearLine(data.first);
     formatToFile();
 }
 int Vm::getMulti(){
@@ -370,6 +423,12 @@ int Vm::getMulti(){
     }catch(...){
         return 0;
     }
+}
+std::vector<int> Vm::handleUndo(){
+    std::vector<int> tmp = undoStack.top().undo();
+    formatToFile();
+    undoStack.pop();
+    return tmp;
 }
 void Vm::mergeLines(int from, int to){ //add from to to and erase from
     if (from < buffer.size() && to < buffer.size()){
@@ -395,7 +454,14 @@ const std::pair<int,int> Vm::joinThisAndNextWithSpace(int line, int x){
     if (data.first+1 >= buffer.size()){ //if no line to join to
         return std::pair<int, int>(-1, -1);
     }
-    if (!(buffer[data.first].empty())){ //if current line isnt empty, index +1
+
+    std::vector<std::vector<char>> tmp;
+    tmp.push_back(buffer[data.first]);
+    tmp.push_back(buffer[data.first + 1]);
+    undoStack.top().setContent(std::move(tmp),data); //prepare for undo
+
+    if (!(buffer[data.first].empty()))
+    {                                          //if current line isnt empty, index +1
         if (buffer[data.first].back() != ' '){ //add a space if needed
             buffer[data.first].push_back(' ');
         }else{
@@ -459,6 +525,11 @@ void Vm::replaceCharAt(int line, int x, int c){ //given x is ok.
     }catch(...){
         return;
     }
+
+    std::vector<std::vector<char>> tmp;
+    tmp.push_back(buffer[data.first]);
+    undoStack.top().setContent(std::move(tmp),data); //prepare for undo
+
     buffer[data.first].insert(buffer[data.first].erase(buffer[data.first].begin() + data.second),c);
     formatToFile();
 }
@@ -490,6 +561,9 @@ void Vm::delCharFromFile(int line, int x)
 
 File &Vm::getFile(){
     return *file;
+}
+std::vector<std::vector<char>>& Vm::getBuffer(){
+    return buffer;
 }
 int Vm::getActionRaw(){
     return control->getActionRaw();
