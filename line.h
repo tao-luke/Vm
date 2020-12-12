@@ -4,6 +4,7 @@
 #include <vector>
 #include "word.h"
 #include <map>
+#include <string>
 class Line{
     std::vector<Word> line; //word processing vector
     std::vector<char> rawLine; //raw chars
@@ -16,9 +17,15 @@ class Line{
     void convertToLine();
     void convertToRaw();
     std::map<int, int> indexToWord; //maps an index to word.
+    bool isLinePrep();
+    int firstCommentPos();
+    void initColorPair();
+    void parseLine(int start,int end);
+    int nextWordNotSpace(int x);
 
 public:
-    Line(const std::vector<char>& line, bool withNL,int lineSize,int fileLine,int bufferLine,int beginIndex);
+    void displayLine(int y, int x);
+    Line(const std::vector<char> &line, bool withNL, int lineSize, int fileLine, int bufferLine, int beginIndex);
     std::vector<char> &getRaw();
     bool isFull();
     int firstSpaceCoord();

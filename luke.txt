@@ -1,10 +1,7 @@
-hi I am lukehi
-wow I am fiona wowow
-jlkjlkkjlk
+#include <iostream>
 
-asljkdaklsjd
-
-
-jaklsjdkljsa
-
-can I save this???
+int main(){
+ char c = 'l';
+ std::string name = "luke" ; //this is my name
+ if  
+}

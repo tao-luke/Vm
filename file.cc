@@ -139,8 +139,13 @@ int File::getRawLineSize(int line){
     return file[line].rawSize();
 }
 void File::printLines(){
-    for(int i=0;i<lineTotal();i++){
-        file[i].print();
+    int x = 0;
+    int y = 0;
+    for (int i = 0; i < lineTotal(); i++)
+    {
+        file[i].displayLine(y, x);
         std::cout << std::endl;
+        y++;
+        x = 0;
     }
 }

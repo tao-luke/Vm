@@ -159,7 +159,7 @@ void Vm::removeLineFromFile(int lineN, bool savePre){
     inLinePaste = false; //we took a whole line
     if (file->lineTotal() == 1)
     {
-        clearLine(data.first);
+        clearLineWithFormat(data.first);
     }
     else
     {

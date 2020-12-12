@@ -18,27 +18,19 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
     File file = vm.getFile();
     int x = 0;
     int y = 0;
-
     //! this part should become fancy later on!!!! //we need to convert each line to special line each type view updates!!!!
     int end = min(maxH, firstDisplayLine + screenH);
     for (int i = firstDisplayLine; i < end ; i++) //! accomate coloring and what not
     { //lines to be shown on screen
-            for (auto &c: file.getLineRaw(i)){
-                move(y, x++);
-                addch(c);
-                // printw("and the line# is:");
-                // std::string n = std::to_string(i);
-                // char const *f = n.c_str();
-                // printw(f);
-            }
-            x = 0;
-            y++;
-            // move(y-1, screenW+1);
-            // if (file.getLineWithNL(i)){
-            //     addch('1');
-            // }else{
-            //     addch('0');
-            // }
+        file.getLine(i).displayLine(y, x);
+        x = 0;
+        y++;
+        // move(y-1, screenW+1);
+        // if (file.getLineWithNL(i)){
+        //     addch('1');
+        // }else{
+        //     addch('0');
+        // }
     }
     int tmp = maxH;
     while (tmp < firstDisplayLine + screenH)
@@ -51,6 +43,7 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
 void NcurseView::displayView(){
     noecho();
     keypad(stdscr, TRUE);
+    start_color();
     getmaxyx(stdscr, screenH, screenW);
     screenH--; //make space for status bar
     screenW--;

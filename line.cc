@@ -1,13 +1,20 @@
 #include "line.h"
 #include <iostream> //for testing
-Line::Line(const std::vector<char>& rawLine,bool withNL,int lineSize,int fileLine,int bufferLine, int beginIndex):rawLine{rawLine},lineLimit{lineSize},bufferLine{bufferLine},beginIndex{beginIndex},withNL{withNL}{
+#include <ncurses.h>
+#include <regex>
+#define keyword 1
+#define numLit 2
+#define strLit 3
+#define ident 4
+#define comment 5
+#define prep 6
+#define other 7
+Line::Line(const std::vector<char> &rawLine, bool withNL, int lineSize, int fileLine, int bufferLine, int beginIndex) : rawLine{rawLine}, lineLimit{lineSize}, bufferLine{bufferLine}, beginIndex{beginIndex}, withNL{withNL}
+{
     convertToLine();
 }
 bool Line::isFull(){
     return lineLimit <= rawLine.size();
-}
-void Line::convertToRaw(){
-
 }
 void Line::convertToLine(){
     int word = 0;
@@ -51,7 +58,6 @@ int Line::getPreviousWordCoord(int x){
 }
 
 int Line::getNextWordCoord(int x){
-    int newIndex = x;
     if (rawLine.size()== 0 || firstWordCoord() == -1){
         return 0;
     }
@@ -75,6 +81,86 @@ int Line::firstSpaceCoord(){
     }
     return -1;
 }
+
+bool Line::isLinePrep(){
+    if (firstWordCoord() != -1){
+        return (rawLine[firstWordCoord()] == '#');
+    }
+    return false;
+}
+void Line::initColorPair(){
+    init_pair(keyword,COLOR_MAGENTA ,COLOR_BLACK);
+    init_pair(numLit,COLOR_GREEN ,COLOR_BLACK);
+    init_pair(strLit, COLOR_YELLOW,COLOR_BLACK);
+    init_pair(ident,COLOR_RED ,COLOR_BLACK);
+    init_pair(comment,COLOR_CYAN ,COLOR_BLACK);
+    init_pair(prep, COLOR_BLUE,COLOR_BLACK);
+    init_pair(other, COLOR_WHITE,COLOR_BLACK);
+}
+void Line::displayLine(int y, int x)
+{
+    initColorPair(); //initialize the pairs for each type of word
+    if (isLinePrep()){ //if this beigns with #
+        for (auto &w:line){
+            w.setColor(prep);
+        }
+    }else
+    {
+        if (firstCommentPos() != -1) //if there is a comment
+        {
+            for (auto start = line.begin() + firstCommentPos(); start != line.end();++start){ //set the parts after// as comment
+                (*start).setColor(comment);
+            }
+            parseLine(0, firstCommentPos()); //parse the parts before //
+        }else{
+            parseLine(0,line.size());   //if not prep or comment, parse wholething
+        }
+    }
+
+    for(auto & w:line){ //print words
+        w.displayWord(y, x);
+    }
+}
+int Line::firstCommentPos(){
+    int counter = 0;
+    for (auto &w : line)
+    {
+        if (w.getWord().size() >=2 && w.getWord().front() == '/' && w.getWord().at(1) == '/'){
+            return counter;
+        }
+        counter++;
+    }
+    return -1;
+}
+void Line::parseLine(int start,int end){
+    std::regex stringRule("^\".*\"$");
+    std::regex numRule("^[0-9]+$");
+    std::regex keywords("^(alignas)|(alignof)|(and)|(and_eq)|(asm)|(auto)|(bitand)|(bitor)|(bool)|(break)|(case)|(catch)|(char)|(char16_t)|(char32_t)|(class)|(compl)|(const)|(constexpr)|(const_cast)|(continue)|(decltype)|(default)|(delete)|(do)|(double)|(dynamic_cast)|(else)|(enum)|(explicit)|(export)|(extern)|(false)|(float)|(for)|(friend)|(goto)|(if)|(inline)|(int)|(long)|(mutable)|(namespace)|(new)|(noexcept)|(not)|(not_eq)|(nullptr)|(operator)|(or)|(or_eq)|(private)|(protected)|(public)|(register)|(reinterpret_cast)|(return)|(short)|(signed)|(sizeof)|(static)|(static_assert)|(static_cast)|(struct)|(switch)|(template)|(this)|(thread_local)|(throw)|(true)|(try)|(typedef)|(typeid)|(typename)|(union)|(unsigned)|(using)|(virtual)|(void)|(volatile)|(wchar_t)|(while)|(xor)|(xor_eq)^");
+    std::regex types("^(int)|(char)|(bool)|(float)|(double)|(void)|(wchar_t)|(sample)$");
+    for (int i = start; i < end; i++)
+    {
+        std::string copy = line[i].getWordString();
+        if (std::regex_match(line[i].getWordString(), stringRule))
+        { //if this word is a string
+            line[i].setColor(strLit);
+        }
+        else if (std::regex_match(line[i].getWordString(), numRule))
+        { //if num lit
+            line[i].setColor(numLit);
+        }
+        else if (std::regex_match(line[i].getWordString(), keywords))
+        { //key words
+            line[i].setColor(keyword);
+            if (std::regex_match(copy,types)){
+                int next = nextWordNotSpace(++i);
+                if (next != -1){
+                    i = next;
+                    line[i].setColor(ident);
+                }
+            }
+        }
+    }
+}
 int Line::firstWordCoord(){
     for (int i = 0; i < rawLine.size();i++){
         if (rawLine[i] != ' '){
@@ -83,23 +169,16 @@ int Line::firstWordCoord(){
     }
     return -1;
 }
-void Line::print(){ //! for debuggin
-    // for(int i = 0;i<line.size();i++){
-    //     if (line[i].isSpace()){
-    //         std::cout << " space ";
-    //     }else{
-    //         for(auto n : line[i].getWord()){
-    //             std::cout << n;
-    //         }
-    //     }
-    // }
-    //raw for now
-    for (auto & c: rawLine){
-        int tmp = c;
-        std::cout << tmp << " ";
+int Line::nextWordNotSpace(int x){
+    while (x < line.size()){
+        if (line[x].isSpace()){
+            x++;
+        }else{
+            return x;
+        }
     }
+    return -1;
 }
-
 bool Line::getWithNL(){
     return withNL;
 }
