@@ -7,6 +7,7 @@
 #include "file.h"
 #include <string>
 #include <iostream>
+#include <stdlib.h>
 class badmove{
 };
 NcurseView::NcurseView(Vm &vm) : cursorY{0}, cursorX{0}, screenH{0}, screenW{0}, maxH{0}, firstDisplayLine{0}, vm{vm}
@@ -32,12 +33,12 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
             }
             x = 0;
             y++;
-            move(y-1, screenW+1);
-            if (file.getLineWithNL(i)){
-                addch('1');
-            }else{
-                addch('0');
-            }
+            // move(y-1, screenW+1);
+            // if (file.getLineWithNL(i)){
+            //     addch('1');
+            // }else{
+            //     addch('0');
+            // }
     }
     int tmp = maxH;
     while (tmp < firstDisplayLine + screenH)
@@ -117,51 +118,67 @@ bool NcurseView::validFirstLine(int firstLine){ //determine if is it ok to have 
     return false;
 }
 
-void NcurseView::displayStatusBar(int c = -1){
-    if (vm.getState() == State::command)
-        move(screenH , screenW -70); //! possibly change this magic number to something else!
-    else
-        move(screenH , screenW - 70);
-    
-    std::string s = std::to_string(cursorY);
-    char const *y = s.c_str();
-    std::string b = std::to_string(cursorX);
-    char const *x = b.c_str();
-    std::string p = std::to_string(maxH);
-    char const *H = p.c_str();
-    std::string k = std::to_string(screenH);
-    char const *r = k.c_str();
-    std::string n = std::to_string(firstDisplayLine);
-    char const *f = n.c_str();
-    char const *input;
-    if (vm.getState() == State::command)
-        printw("command mode");
-    else{
-        std::string given = std::to_string(c);
-        input = given.c_str();
-        printw("insert mode");
-    }
-
-    printw("   y:");
-    printw(y);
-    printw(" x:");
-    printw(x);
-    printw(" maxH: ");
-    printw(H);
-    printw(" screenH: ");
-    printw(r);
-    printw(" firstLine:");
-    printw(f);
-    if (vm.getState() == State::insert)
-    {
-        printw(" input:");
-        printw(input);
+void NcurseView::displayStatusBar(){
+    move(screenH, 0);
+    if (colonMode){
+        for(auto & c: queue){
+            addch(c);
+        }
     }else{
-        printw(" queue:");
+        if (vm.getState() == State::insert){ //mode
+            printw("-- INSERT -- ");
+        }else{
+            if (showFileInfo){
+                printw("\"");
+                printw(vm.getName());
+                printw("\"");
+                move(screenH, 12);
+                if (vm.getModified()){
+                    printw("[Mod]");
+                }
+                std::string num = std::to_string(maxH);
+                char const *totalline = num.c_str();
+                printw(totalline);
+                printw(" lines");
+                std::string currentPHelper = " --" + std::to_string((((cursorY + firstDisplayLine) * 100 / maxH)));
+                char const *currentPer = currentPHelper.c_str();
+                printw(currentPer);
+                addch('%');
+                printw("-- ");
+                std::string stackleft = std::to_string(vm.getStackSize());
+                char const *totalstack = stackleft.c_str();
+                printw(totalstack);
+                printw(" undo(s)in stack");
+            }
+        }
+
+        move(screenH, screenW - 15);
         for(auto &c:queue){
             addch(c);
         }
+
+
+        move(screenH, screenW - 10); //cursorInfo
+        std::pair<int, int> data = vm.convertCursor(cursorY + firstDisplayLine, cursorX);
+        std::string lineInfo = std::to_string(data.first) + "," + std::to_string(data.second);
+        char const *cursorPos = lineInfo.c_str();
+        printw(cursorPos);
+
+
+        move(screenH, screenW-2 ); //percent sign
+        int tmp = ((screenH + firstDisplayLine)*100 / maxH);
+        if (firstDisplayLine >= maxH-screenH){
+            printw("Bot");
+        }else if (firstDisplayLine == 0){
+            printw("Top");
+        }else{
+            std::string tmp1 = std::to_string(tmp);
+            char const *percent = tmp1.c_str();
+            printw(percent);
+            addch('%');
+        }
     }
+    
 }
 std::pair<int,int> NcurseView::moveLeftUp(){ //move left if possible, else if above is part of this line, move to its end
     int x = cursorX;
@@ -301,10 +318,20 @@ void NcurseView::removeCharHelper(int line, int x,bool copy,Action action){
 }
 void NcurseView::updateView(std::pair<int,Action> input){
     int c = input.first; //current command char
-    if (input.second == Action::await){
+    if (input.second == Action::await || input.second == Action::colonAwait)
+    { //when are waiting for a queue
         queue.push_back(c);
-    }else{
-        if (!(queue.empty())){
+    }
+    else
+    { //else ready to do stuff
+        if (input.second == Action::queuePop){
+            queue.pop_back();
+        }
+        else if (input.second != Action::redo)
+        {
+            vm.pushActionToHistory(input.second);
+        }
+        if (!(queue.empty()) && !(colonMode)){
             queue.clear();
         }
     }
@@ -313,11 +340,90 @@ void NcurseView::updateView(std::pair<int,Action> input){
     int tmp; //to copy any int
     std::pair<int, int> data;
     std::vector<int> info;
+    std::string name;
     switch (input.second)
     {
     case Action::invalid:
+        colonMode = false;
+        queue.clear();
         break;
     case Action::await:
+        break;
+    case Action::moveToFileStart:
+        cursorY = 0;
+        cursorX = 0;
+        firstDisplayLine = 0;
+        colonMode = false;
+        queue.clear();
+        break;
+    case Action::insertOtherFile:
+        for (auto ite = queue.begin() + 3; ite != queue.end(); ++ite)
+        {
+            name.push_back(static_cast<char>(*ite));
+        }
+        vm.insertOtherFile(line, name);
+        updateMaxH();
+        colonMode = false;
+        queue.clear();
+        break;
+    case Action::jumpToLine:
+        cursorX = 0;
+        cursorY = 0;
+        data = vm.convertCursor(cursorY,cursorX);
+        while (c != data.first){
+            if (cursorY == moveDown().first){
+                break;
+            }
+            cursorY = moveDown().first;
+            data = vm.convertCursor(cursorY, cursorX);
+        }
+        queue.clear();
+        colonMode = false;
+        break;
+    case Action::colonAwait:
+        colonMode = true;
+        break;
+    case Action::saveNoExit:
+        vm.saveFile();
+        queue.clear();
+        colonMode = false;
+        vm.getModified() = false;
+        break;
+    case Action::noSaveExit:
+        if (!(vm.getModified())){
+            endwin();
+            vm.end();
+            return;
+        }
+        break;
+    case Action::moveToFileEnd:
+        cursorX = 0;
+        cursorY = 0;
+        data = vm.convertCursor(cursorY,cursorX);
+        while (maxH != data.first){
+            if (cursorY == moveDown().first){
+                break;
+            }
+            cursorY = moveDown().first;
+            data = vm.convertCursor(cursorY, cursorX);
+        }
+        cursorX = file.getRawLineSize(cursorY + firstDisplayLine);
+        if (cursorX != 0){
+            cursorX--;
+        }
+        queue.clear();
+        colonMode = false;
+        break;
+    case Action::saveAndExit:
+        vm.saveFile();
+        endwin();
+        vm.end();
+        return;
+        break;
+    case Action::noSaveExitForce:
+        endwin();
+        vm.end();
+        return;
         break;
     case Action::up:
         data = moveUp();
@@ -343,6 +449,84 @@ void NcurseView::updateView(std::pair<int,Action> input){
         cursorY = data.first;
         scrollDown();
         break;
+    case Action::moveHalfScreenForward:
+        showFileInfo = false;
+        tmp = screenH/2;
+        while (cursorY + firstDisplayLine + 1 < maxH&& tmp >=0)
+        {
+            if (firstDisplayLine + screenH < maxH){
+                firstDisplayLine++;
+            }else{
+                cursorY++;
+            }
+            tmp--;
+        }
+
+        if (!(validateX(cursorY,cursorX))){
+            cursorX = file.getRawLineSize(cursorY + firstDisplayLine);
+            if (cursorX != 0){
+                cursorX--;
+            }
+        }
+        break;
+    case Action::moveOneScreenForward:
+        showFileInfo = false;
+        tmp = screenH;
+        while (cursorY + firstDisplayLine + 1 < maxH&& tmp >=0)
+        {
+            if (firstDisplayLine + screenH < maxH){
+                firstDisplayLine++;
+            }else{
+                cursorY++;
+            }
+            tmp--;
+        }
+
+        if (!(validateX(cursorY,cursorX))){
+            cursorX = file.getRawLineSize(cursorY + firstDisplayLine);
+            if (cursorX != 0){
+                cursorX--;
+            }
+        }
+        break;
+    case Action::moveHalfScreenBack:
+        showFileInfo = false;
+        tmp = screenH/2;
+        while (cursorY+firstDisplayLine-1>= 0 && tmp >=0)
+        {
+            if (firstDisplayLine - 1 >= 0){
+                firstDisplayLine--;
+            }else{
+                cursorY--;
+            }
+
+            tmp--;
+        }
+        if (!(validateX(cursorY,cursorX))){
+            cursorX = file.getRawLineSize(cursorY + firstDisplayLine);
+            if (cursorX != 0){
+                cursorX--;
+            }
+        }
+        break;
+    case Action::moveOneScreenBack:
+        showFileInfo = false;
+        tmp = screenH;
+        while (firstDisplayLine - 1 >= 0 && tmp >=0)
+        {
+            firstDisplayLine--;
+            tmp--;
+        }
+        if (!(validateX(cursorY,cursorX))){
+            cursorX = file.getRawLineSize(cursorY + firstDisplayLine);
+            if (cursorX != 0){
+                cursorX--;
+            }
+        }
+        break;
+    case Action::showFileStatus:
+        showFileInfo = true;
+        break;
     case Action::undo:
         if (!(vm.isUndoStackEmpty())){
             info = std::move(vm.handleUndo());
@@ -363,7 +547,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             updateMaxH();
             cursorX = 0;
         }
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteLeftNC:
         data = moveLeftUp();
@@ -373,11 +557,11 @@ void NcurseView::updateView(std::pair<int,Action> input){
             cursorY = data.first;
             vm.deleteCharSimple(line, cursorX,false);
         }
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteRightNC:
         removeCharHelper(line, cursorX,false,input.second);
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteUpNC:
         data = moveUp();
@@ -395,7 +579,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             }
         }
         scrollUp();
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteDownNC:
         data = moveDown();
@@ -411,7 +595,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             }
         }
         scrollDown();
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteLeft:
         data = moveLeftUp();
@@ -424,6 +608,12 @@ void NcurseView::updateView(std::pair<int,Action> input){
         break;
     case Action::deleteRight:
         removeCharHelper(line, cursorX,true,input.second);
+        break;
+    case Action::redo:
+        if (vm.getHistorySize() != 0){
+            updateView(std::pair<int, Action>(input.first, vm.getLastAction()));
+            return;
+        }
         break;
     case Action::deleteUp:
         data = moveUp();
@@ -508,7 +698,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
             cursorY = data.first - firstDisplayLine;
         }
         scrollDown();
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::moveToNextChar:
         if (!(file.getRawLineSize(line) ==0) && cursorX < file.getRawLineSize(line) ){
@@ -547,13 +737,13 @@ void NcurseView::updateView(std::pair<int,Action> input){
         cursorX = 0;
         cursorY = line - firstDisplayLine;
         scrollUp();
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::toCommand:
         vm.setState(State::command);
         break;
     case Action::toInsert:
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::joinThisAndNextWithSpace:
         vm.recordCursor(cursorY, firstDisplayLine, cursorX, maxH,input.second);
@@ -565,7 +755,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
         updateMaxH();
         break;
     case Action::toInsertNext:
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         if (!(file.getRawLineSize(line) == 0)){
             data = notStrictMoveRightDown();
             cursorX = data.second;
@@ -603,7 +793,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
         break;
     case Action::deleteCharThenInsert:
         removeCharHelper(line, cursorX,false,input.second);
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::replaceCharWith:
         if (cursorX < file.getRawLineSize(line)){ //cursorX must be in bound
@@ -627,7 +817,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
 
         scrollDown();
 
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::insertNLAboveAndInsert:
         tmp = line;
@@ -641,7 +831,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
         cursorY = tmp - firstDisplayLine;
         updateMaxH();
         scrollUp();
-        vm.setState(State::insert);
+        vm.setStateHelper(cursorY,firstDisplayLine,cursorX,maxH,State::insert);
         break;
     case Action::deleteLine:
         vm.recordCursor(cursorY, firstDisplayLine, cursorX, maxH,input.second);
@@ -698,6 +888,7 @@ void NcurseView::scrollDown(){
         if (firstDisplayLine+1+ screenH > maxH ){
             return;
         }
+        showFileInfo = false;
         firstDisplayLine++;
         cursorY--;
     }
@@ -708,17 +899,18 @@ void NcurseView::scrollUp(){
         if (firstDisplayLine-1 < 0){
             return;
         }
+        showFileInfo = false;
         firstDisplayLine--;
         cursorY++;
     }
 }
 
-void NcurseView::updateView(int c){ //for INsert mode 
+void NcurseView::updateView(int c){ //for INsert mode //! implement replace mode
     if (c != 27)
     {                  //NOT esecape key
     int line = cursorY + firstDisplayLine;
         if (c == 127){ //given delete key
-            int beginIndex = vm.getFile().getBeginIndexOnLine(line); //! still need fixing, cant handle at end then not at end
+            int beginIndex = vm.getFile().getBeginIndexOnLine(line);
             if (cursorX == 0) //crusorx = 0
             {
                 if (!(line == 0)){ //not at x,y == 0,0
@@ -773,18 +965,13 @@ void NcurseView::updateView(int c){ //for INsert mode
             cursorX--;
         }
         vm.setState(State::command);
-        displayStatusBar(c);
-        moveCursor(cursorY, cursorX);
-        refresh();
-        return;
     }
     erase();
     displayFile(); //display the original file
-    displayStatusBar(c);
+    displayStatusBar();
     moveCursor(cursorY, cursorX);
     refresh();
 }
 
 NcurseView::~NcurseView(){
-    endwin();
 }

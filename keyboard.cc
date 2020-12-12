@@ -5,10 +5,15 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap[260] = Action::left;
     keymap[258] = Action::down;
     keymap[261] = Action::right;
+    keymap[2] = Action::moveOneScreenBack;
+    keymap[4] = Action::moveHalfScreenForward;
+    keymap[6] = Action::moveOneScreenForward;
+    keymap[21] = Action::moveHalfScreenBack;
     keymap['i'] = Action::toInsert;
     keymap['a'] = Action::toInsertNext;
     keymap['b'] = Action::toPreviousWord;
     keymap['x'] = Action::deleteChar;
+    keymap['X'] = Action::deleteLeft;
     keymap['s'] = Action::deleteCharThenInsert;
     keymap['o'] = Action::insertNLUnderAndInsert;
     keymap['p'] = Action::pasteAfterCursor;
@@ -22,8 +27,11 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['^'] = Action::toFirstNonBlank;
     keymap['$'] = Action::toLastChar;
     keymap['u'] = Action::undo;
-    int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
-    std::set<int> sample(tmp,tmp+16);
+    keymap['.'] = Action::redo;
+    keymap['R'] = Action::toReplace;
+    keymap[7] = Action::showFileStatus;
+    int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', ':', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    std::set<int> sample(tmp,tmp+17);
     awaitKey = std::move(sample);
 }
 Action Keyboard::getActionMovement(int com1, int movement){
@@ -127,23 +135,99 @@ Action Keyboard::getActionHelper(int initial,int buffer){
         break;
     } 
 }
-
+bool Keyboard::isQueueNumber(){
+    if (queue.empty())
+        return false;
+    for (auto &e : queue)
+    {
+        if (e <'0' || e > '9'){
+            return false;
+        }
+    }
+    return true;
+}
 std::pair<int,Action> Keyboard::getAction() {
     int initial= 0;
     initial = getch();
-    if(queue.empty()){ //if queue is clear
-        if (awaitKey.find(initial) != awaitKey.end()){ //if we find its a await needed command
-            if (!(initial >= '0' && initial <= '9')){
+    if (colonMode){
+        if (initial == 10){
+            colonMode = false;
+            if (isQueueNumber())
+            {
+                if (queue.size() == 1 && queue.front() == '0'){ // :0
+                    return std::pair<int, Action>(0, Action::moveToFileStart);
+                }
+                std::string tmp;
+                char ch;
+                for (auto &c : queue) //push queue to string 
+                {
+                    ch = c;
+                    tmp.push_back(ch);
+                }
+                int line = std::stoi(tmp);
+                return std::pair<int, Action>(line, Action::jumpToLine); //:number
+            }else if (queue.front() == 'r')
+            {
+                return std::pair<int, Action>(0, Action::insertOtherFile);
+            }
+            else if (queue.size() == 1)
+            {
+                if (queue.front() == 'w'){ //:w
+                    return std::pair<int, Action>(0, Action::saveNoExit);
+                }else if (queue.front() == 'q'){ //:q
+                    return std::pair<int, Action>(0, Action::noSaveExit);
+                }
+                else if (queue.front() == '$')
+                { //:$
+                    return std::pair<int, Action>(0, Action::moveToFileEnd);
+                }
+            }
+            else if (queue.size() == 2)
+            {
+                if (queue.front() == 'w' && queue.back() == 'q'){ //:wq
+                    return std::pair<int, Action>(0, Action::saveAndExit);
+                }else if (queue.front() == 'q' && queue.back() == '!'){ //:q!
+                    return std::pair<int, Action>(0, Action::noSaveExitForce);
+                }
+            }
+            else
+            { 
+                return std::pair<int, Action>(-1, Action::invalid);
+            }
+        }else{ //if its not over yet
+            if (initial == 127){
+                if (!(queue.empty())){
+                    queue.pop_back();
+                }
+                
+                return std::pair<int, Action>(0, Action::queuePop);
+            }else
+            {
                 queue.push_back(initial);
+                return std::pair<int,Action>(initial, Action::colonAwait);
+            }
+        }
+    }else if (queue.empty())
+    {                                                  //if queue is clear
+        if (awaitKey.find(initial) != awaitKey.end()){ //if we find its a await needed command
+            if (!(initial >= '0' && initial <= '9') && initial!=':')
+            {
+                queue.push_back(initial);
+            }
+            if(initial == ':'){
+                colonMode = true;
+                return std::pair<int, Action>(initial, Action::colonAwait); //!vm needs to keep a var for this as well
             }
             return std::pair<int, Action>(initial, Action::await);
         } //if its a simple command
         try{
-            return std::pair<int,Action>(initial,keymap.at(initial));
+            return std::pair<int, Action>(initial, keymap.at(initial));
         }catch(...){
             return std::pair<int, Action>(-1, Action::invalid);
         }
-    }else{ //return combo command
+    }
+    else
+    { //return combo command
         int tmp = queue.front();
         queue.clear();
         return std::pair<int, Action>(initial, getActionHelper(tmp, initial));

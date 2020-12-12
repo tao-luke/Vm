@@ -14,12 +14,14 @@ class NcurseView : public View
     int cursorY, cursorX, screenH, screenW, maxH, firstDisplayLine;
     Vm &vm;
     std::vector<int> queue;
+    bool colonMode = false;
+    bool showFileInfo = true;
     void displayFile();
     bool validCursor(int cursorY, int cursorX);
     bool validFirstLine(int firstLine);
     int updateMaxH();
     void scrollDown();
-    void displayStatusBar(int c);
+    void displayStatusBar();
     std::pair<int,int> moveLeftUp();
     std::pair<int,int> moveRightDown();
     std::pair<int, int> notStrictMoveRightDown();

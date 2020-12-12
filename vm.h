@@ -23,10 +23,14 @@ class Vm :public Model{
     std::vector<std::vector<char>> clipboard;
     std::string multi;
     std::stack<Event> undoStack;
+    std::stack<Action> history;
+    const char *name;
+    bool modified = false;
     bool inLinePaste = false;
     bool skipOneRecord = false;
+    bool endIt = false;
     int lineSize = 0;
-    void readFile(const char *name);
+    std::vector<std::vector<char>> readFile(const char *name);
     void formatToFile();
     void formatToRaw();
     void mergeLines(int l1, int l2);
@@ -34,11 +38,23 @@ class Vm :public Model{
     bool validate(int vecline, int vecindex);
     std::pair<int, int> validateAndConvert(int line, int x);
     void clearLine(int first);
+    bool fileExist(std::string &name);
 
 public:
+    void insertOtherFile(int line, std::string name);
+    void end();
+    void saveFile();
+    size_t getHistorySize();
+    Action getLastAction();
+    void pushActionToHistory(Action action);
+    bool& getModified();
+    const char *getName();
+    size_t getStackSize();
+    const std::pair<int, int> convertCursor(int line, int x);
     void setSkipRecord(bool next);
     bool isUndoStackEmpty();
     void recordCursor(int cursorY, int firstDisplayLine, int cursorX, int maxH, Action action);
+    void setStateHelper(int cursorY, int firstDisplayLine, int cursorX, int maxH, State state);
     int getMulti();
     const std::pair<int, int> pasteAfterCursor(int cursorY,int firstDisplayLine,int maxH,int cursorX);
     const std::pair<int, int> pasteBeforeCursor(int cursorY,int firstDisplayLine,int maxH, int cursorX);

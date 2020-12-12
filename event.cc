@@ -135,7 +135,7 @@ std::vector<int> Event::undo()
         buffer.erase(buffer.begin() + data.first+1);
         break;
     case toInsert: //case where we need to STORE EVERYTHING IN THE FILE GRRR
-        
+        buffer.swap(content);
         break;
     default:
         break;

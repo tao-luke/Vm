@@ -7,9 +7,10 @@
 #include <iostream>
 class badlineN{
 };
-void Vm::readFile(const char *name)
+std::vector<std::vector<char>> Vm::readFile(const char *name)
 { //! need to add check for last char being \n
-    try{    
+    try{
+        std::vector<std::vector<char>> buffer;
         std::ifstream FILE(name);
         std::vector<char> tmp;
         char c;
@@ -28,11 +29,24 @@ void Vm::readFile(const char *name)
             buffer.push_back(tmp);
         }
         FILE.close();
+        return buffer;
     }
     catch (...)
     {
         std::cout << "file read error";
     }
+}
+void Vm::saveFile(){
+    
+    std::ofstream output(name, std::ofstream::out);
+    std::filebuf* outbuf = output.rdbuf();
+    for(auto &l: buffer){
+        for(auto&c: l){
+            outbuf->sputc(c);
+        }
+        outbuf->sputc('\n');
+    }
+    output.close();
 }
 std::pair<int,int> Vm::validateAndConvert(int line, int x){
     std::pair<int, int> data = file->convert_cursor(line, x); 
@@ -43,21 +57,35 @@ std::pair<int,int> Vm::validateAndConvert(int line, int x){
 void Vm::formatToFile(){
     file = std::move(std::make_unique<File>(buffer,lineSize));
 }
-Vm::Vm(const char* name,int lineSize):state{State::command},lineSize{lineSize}{
+const char* Vm::getName(){
+    return name;
+}
+Vm::Vm(const char* name,int lineSize):state{State::command},name{name},lineSize{lineSize}{
     
-    readFile(name);
-
+    buffer = std::move(readFile(name));
     formatToFile();
     addView(std::move(std::make_unique<NcurseView>(*this)));
     addControl(std::move(std::make_unique<Keyboard>()));
     //more funcs to come
 }
-
+void Vm::pushActionToHistory(Action action){
+    history.push(action);
+}
+Action Vm::getLastAction(){
+    return history.top();
+}
+size_t Vm::getHistorySize(){
+    return history.size();
+}
+void Vm::setStateHelper(int cursorY, int firstDisplayLine,int cursorX, int maxH,State state){
+    setState(state);
+    if (state == State::insert){
+        recordCursor(cursorY, firstDisplayLine, cursorX, maxH,Action::toInsert);
+        undoStack.top().setContent(buffer,std::pair<int,int>(-1,-1));
+    }
+}
 void Vm::setState(State state){
     this->state = state;
-    if (state == State::insert){
-        //! start from here, make sure to save the entire buffer for this.
-    }
 }
 
 State Vm::getState(){
@@ -80,7 +108,15 @@ void Vm::insertNLBehind(int line, int x){
     buffer.insert(buffer.begin() + data.first + 1, std::vector<char>());
     formatToFile();
 }
-
+const std::pair<int,int> Vm::convertCursor(int line,int x){
+    std::pair<int,int> data;
+    try{
+        data = validateAndConvert(line, x);
+    }catch(...){
+        return std::pair<int, int>(-1, -1);
+    }
+    return data;
+}
 void Vm::insertNLAbove(int line,int x){
     std::pair<int,int> data;
     try{
@@ -94,7 +130,9 @@ void Vm::insertNLAbove(int line,int x){
     buffer.insert(buffer.begin() + data.first, std::vector<char>());
     formatToFile();
 }
-
+size_t Vm::getStackSize(){
+    return undoStack.size();
+}
 void Vm::formatToRaw(){
     buffer = std::move(file->convertToRaw());
 }
@@ -391,11 +429,15 @@ void Vm::deleteCharSimple(int line, int x,bool copyIt){
     buffer[data.first].erase(ite);
     formatToFile(); //! we can improve efficiency here
 }
+bool& Vm::getModified(){
+    return modified;
+}
 bool Vm::isUndoStackEmpty(){
     return (undoStack.empty());
 }
 void Vm::recordCursor(int cursorY,int firstDisplayLine, int cursorX, int maxH, Action action)
 {
+    modified = true;
     undoStack.push(std::move(Event(cursorY, firstDisplayLine, cursorX, maxH, action, *this)));
 }
 void Vm::clearLine(int first){
@@ -568,8 +610,32 @@ std::vector<std::vector<char>>& Vm::getBuffer(){
 int Vm::getActionRaw(){
     return control->getActionRaw();
 }
-
-void Vm::run(){
+void Vm::end(){
+    endIt = true;
+}
+bool Vm::fileExist(std::string & name){
+    ifstream check(name.c_str());
+    return check.good();
+}
+void Vm::insertOtherFile(int line, std::string name){
+    std::cout << name;
+    if (fileExist(name))
+    {
+        std::pair<int,int> data;
+        try{
+            data = validateAndConvert(line, 0);
+        }catch(...){
+            return;
+        }
+        std::vector<std::vector<char>> tmp = readFile(name.c_str());
+        for (auto& l: tmp){
+            buffer.insert(buffer.begin() + data.first, l);
+        }
+    }
+    formatToFile();
+}
+void Vm::run()
+{
     std::pair<int, Action> data;
     int b;
     if (view)
@@ -578,7 +644,7 @@ void Vm::run(){
     {
         if (state == State::command){
             data = getAction();
-            if (data.first >= '0' && data.first <= '9'){
+            if (data.first >= '0' && data.first <= '9' && data.second != Action::colonAwait){
                 if (getMulti() == 0 && data.first == '0'){
                     data.second = Action::toFirstChar;
                 }
@@ -587,7 +653,7 @@ void Vm::run(){
                     multi.push_back(static_cast<char>(data.first));
                 }
             }
-            if (getMulti() != 0 && data.second != Action::await){
+            if (getMulti() != 0 && data.second != Action::await && data.second != Action::colonAwait){
                 int tmp = getMulti();
                 clipboard.clear();
                 for (int i = 0; i < tmp; i++)
@@ -599,6 +665,9 @@ void Vm::run(){
             else
             {
                 updateView(data);
+            }
+            if (endIt){
+                return;
             }
             view->refreshView();
         }

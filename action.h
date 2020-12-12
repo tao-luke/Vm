@@ -3,6 +3,7 @@
 enum Action
 {
     await,      //next command is needed
+    colonAwait, //await for colon mode
     left,        //h
     right,       //l
     up,          //k
@@ -30,6 +31,7 @@ enum Action
     moveToNextChar, //f(c)
     moveToPreviousChar, // F(c)
     replaceCharWith, // r(c)
+    toReplace,  //R
     undo, //u
     pasteAfterCursor, //p
     pasteBeforeCursor, //P
@@ -43,7 +45,22 @@ enum Action
     insertNLAboveAndInsert, //O
     toFirstNonBlank, //^
     toLastChar, //$
+    showFileStatus, //^g
+    redo,   //.
+    moveOneScreenBack, //^b
+    moveHalfScreenBack, //^u
+    moveHalfScreenForward, //^d
+    moveOneScreenForward, //^f
     nothing, //no command
     invalid, //this should break!
+    saveNoExit,      //:w
+    jumpToLine,     //:(some number)
+    noSaveExit, // :q!
+    noSaveExitForce, //:q!
+    moveToFileStart, //:0
+    moveToFileEnd,  //:$
+    saveAndExit,    //:wp
+    insertOtherFile, //:r
+    queuePop, //when del in colonmode
 };
 #endif

@@ -11,10 +11,12 @@
 class Keyboard : public Controller
 {
     std::map<int, Action> keymap;
-    Action getActionHelper(int initial,int buffer);
+    bool colonMode = false;
+    Action getActionHelper(int initial, int buffer);
     Action getActionMovement(int initial,int movement);
     std::set<int> awaitKey;
     std::vector<int> queue;
+    bool isQueueNumber();
 
 public:
     Keyboard();
