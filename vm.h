@@ -30,6 +30,7 @@ class Vm :public Model{
     bool skipOneRecord = false;
     bool endIt = false;
     int lineSize = 0;
+    int lastChar = -1;
     std::vector<std::vector<char>> readFile(const char *name);
     void formatToFile();
     void formatToRaw();
@@ -41,6 +42,10 @@ class Vm :public Model{
     bool fileExist(std::string &name);
 
 public:
+    char getLastChar();
+    std::pair<int, int> searchForOpp(int line, int cursorX, std::vector<int> word);
+    std::pair<int, int> searchFor(int line, int cursorX, std::vector<int> word);
+    bool highlightOption();
     void insertOtherFile(int line, std::string name);
     void end();
     void saveFile();

@@ -14,7 +14,7 @@ class NcurseView : public View
     int cursorY, cursorX, screenH, screenW, maxH, firstDisplayLine;
     Vm &vm;
     std::vector<int> queue;
-    bool colonMode = false;
+    bool focusedMode = false;
     bool showFileInfo = true;
     void displayFile();
     bool validCursor(int cursorY, int cursorX);
@@ -32,9 +32,11 @@ class NcurseView : public View
     void scrollUp();
     void moveCursor(int y, int x);
     void removeCharHelper(int line, int x,bool copy,Action action);
-
-
+    Action init(Action action);
+    std::pair<int,int> leftUpSearch();
+    std::pair<int,int> rightDownSearch();
 public:
+
     void refreshView() override;
     NcurseView(Vm & vm); 
     void updateView(std::pair<int,Action> input) override;

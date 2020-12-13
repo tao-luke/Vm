@@ -63,6 +63,9 @@ const char* Vm::getName(){
 Vm::Vm(const char* name,int lineSize):state{State::command},name{name},lineSize{lineSize}{
     
     buffer = std::move(readFile(name));
+    if (buffer.empty()){
+        buffer.push_back(std::vector<char>());
+    }
     formatToFile();
     addView(std::move(std::make_unique<NcurseView>(*this)));
     addControl(std::move(std::make_unique<Keyboard>()));
@@ -94,7 +97,27 @@ State Vm::getState(){
 Vm::~Vm(){
 
 }
-
+std::pair<int,int> Vm::searchFor(int line, int x, std::vector<int> word){
+    for (; line < file->lineTotal();line++){
+        int result = file->getLine(line).findMatch(x,word);
+        if (result != -1){
+            return std::pair<int, int>(line, result);
+        }
+        x = 0;
+    }
+    return std::pair<int, int>(-1, -1);
+}
+std::pair<int,int> Vm::searchForOpp(int line, int x, std::vector<int>word){
+    for (; line >= 0;line--){
+        //std::cout << "wow";
+        int result = file->getLine(line).findMatchOpp(x, word);
+        if (result != -1){
+            return std::pair<int, int>(line, result);
+        }
+        x = -1;
+    }
+    return std::pair<int, int>(-1, -1);
+}
 void Vm::insertNLBehind(int line, int x){
     std::pair<int,int> data;
     try{
@@ -443,7 +466,16 @@ void Vm::recordCursor(int cursorY,int firstDisplayLine, int cursorX, int maxH, A
 void Vm::clearLine(int first){
     buffer[first].clear();
 }
-
+bool Vm::highlightOption(){
+    std::string tmp("");
+    tmp += name;
+    std::string op1(".cc");
+    std::string op2(".h");
+    if (tmp.find(op1) != std::string::npos || tmp.find(op2) != std::string::npos)
+    {
+        return true;
+    }
+}
 void Vm::clearLineWithFormat(int lineN){
     std::pair<int,int> data;
     try{
@@ -522,8 +554,13 @@ const std::pair<int,int> Vm::joinThisAndNextWithSpace(int line, int x){
     formatToFile();
     return endPos;
 }
+char Vm::getLastChar(){
+    return lastChar;
+}
 const std::pair<int,int> Vm::nextCharCoord(int line, int x, int c){ //find next char assuming line is valid
-    while (true){ //as long as the line we are checking isnt the end of the vector line, we can continue to next
+    lastChar = c;
+    while (true)
+    { //as long as the line we are checking isnt the end of the vector line, we can continue to next
         for (auto start = file->getLineRaw(line).begin() + x + 1; start != file->getLineRaw(line).end();++start){
             x++;
             if (*start == c)
@@ -533,7 +570,7 @@ const std::pair<int,int> Vm::nextCharCoord(int line, int x, int c){ //find next 
         }
 
         line++;
-        if (line >= file->lineTotal() || ((file->getLineWithNL(line)) && (file->getBeginIndexOnLine(line-1) != 0)))
+        if (line >= file->lineTotal() || (file->getBeginIndexOnLine(line) ==0 ))
         {
             break;
         }
@@ -542,7 +579,9 @@ const std::pair<int,int> Vm::nextCharCoord(int line, int x, int c){ //find next 
     return std::pair<int,int>(-1,-1);
 }
 const std::pair<int,int> Vm::previousCharCoord(int line, int x, int c){
-    while (true){ //x is at least 1
+    lastChar = c;
+    while (true)
+    { //x is at least 1
         for (auto start = file->getLineRaw(line).rbegin()+ (file->getRawLineSize(line)-x); start != file->getLineRaw(line).rend();++start){
             x--;
             if (*start == c)
@@ -644,7 +683,8 @@ void Vm::run()
     {
         if (state == State::command){
             data = getAction();
-            if (data.first >= '0' && data.first <= '9' && data.second != Action::colonAwait){
+            if (data.first >= '0' && data.first <= '9' && data.second != Action::colonAwait)
+            {
                 if (getMulti() == 0 && data.first == '0'){
                     data.second = Action::toFirstChar;
                 }
@@ -655,7 +695,10 @@ void Vm::run()
             }
             if (getMulti() != 0 && data.second != Action::await && data.second != Action::colonAwait){
                 int tmp = getMulti();
-                clipboard.clear();
+                if (!(data.second == Action::pasteAfterCursor || data.second == Action::pasteBeforeCursor)){
+                    clipboard.clear();
+                }
+                
                 for (int i = 0; i < tmp; i++)
                 {
                     updateView(data);

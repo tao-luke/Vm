@@ -81,7 +81,54 @@ int Line::firstSpaceCoord(){
     }
     return -1;
 }
+int Line::findMatch(int x, std::vector<int> target){
+    if (target.size() > rawSize()){
+        return -1;
+    }
+    for (; x <= rawSize()-target.size(); x++){
+        bool tmp = true;
+        int counter = x;
+        bool stop = true;
+        for (auto &c : target)
+        {
+                tmp = (tmp && (c == rawLine[counter++]));
+                if (tmp == false){
+                    stop = false;
+                    break;
+                }
+        }
+        if (stop){
+            return x;
+        }
+    }
+    return -1;
+}
 
+int Line::findMatchOpp(int x, std::vector<int> target){
+    if (target.size() > rawSize()){
+        return -1;
+    }
+    if (x == -1){
+        x = rawSize() - target.size();
+    }
+    for (; x >= 0; x--){
+        bool tmp = true;
+        int counter = x;
+        bool stop = true;
+        for (auto &c : target)
+        {
+                tmp = (tmp && (c == rawLine[counter++]));
+                if (tmp == false){
+                    stop = false;
+                    break;
+                }
+        }
+        if (stop){
+            return x;
+        }
+    }
+    return -1;
+}
 bool Line::isLinePrep(){
     if (firstWordCoord() != -1){
         return (rawLine[firstWordCoord()] == '#');

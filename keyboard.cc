@@ -29,9 +29,12 @@ Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
     keymap['u'] = Action::undo;
     keymap['.'] = Action::redo;
     keymap['R'] = Action::toReplace;
+    keymap['n'] = Action::repeatSearch;
+    keymap['N'] = Action::repeatSearchOpp;
     keymap[7] = Action::showFileStatus;
-    int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', ':', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
-    std::set<int> sample(tmp,tmp+17);
+    keymap[';'] = Action::repeatCharSearch;
+    int tmp[] = {'d', 'c', 'r', 'F', 'f', 'y', '0', ':', '1', '2', '3', '4', '5', '6', '7', '8', '9', '/', '?'};
+    std::set<int> sample(tmp,tmp+19);
     awaitKey = std::move(sample);
 }
 Action Keyboard::getActionMovement(int com1, int movement){
@@ -155,6 +158,7 @@ std::pair<int,Action> Keyboard::getAction() {
             if (isQueueNumber())
             {
                 if (queue.size() == 1 && queue.front() == '0'){ // :0
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::moveToFileStart);
                 }
                 std::string tmp;
@@ -165,36 +169,46 @@ std::pair<int,Action> Keyboard::getAction() {
                     tmp.push_back(ch);
                 }
                 int line = std::stoi(tmp);
+                queue.clear();
                 return std::pair<int, Action>(line, Action::jumpToLine); //:number
-            }else if (queue.front() == 'r')
+            }else if (!(queue.empty())&& queue.front() == 'r')
             {
+                queue.clear();
                 return std::pair<int, Action>(0, Action::insertOtherFile);
             }
             else if (queue.size() == 1)
             {
                 if (queue.front() == 'w'){ //:w
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::saveNoExit);
                 }else if (queue.front() == 'q'){ //:q
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::noSaveExit);
                 }
                 else if (queue.front() == '$')
                 { //:$
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::moveToFileEnd);
                 }
             }
             else if (queue.size() == 2)
             {
                 if (queue.front() == 'w' && queue.back() == 'q'){ //:wq
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::saveAndExit);
                 }else if (queue.front() == 'q' && queue.back() == '!'){ //:q!
+                    queue.clear();
                     return std::pair<int, Action>(0, Action::noSaveExitForce);
                 }
             }
             else
             { 
+                queue.clear();
                 return std::pair<int, Action>(-1, Action::invalid);
             }
-        }else{ //if its not over yet
+        }
+        else
+        { //if its not over yet
             if (initial == 127){
                 if (!(queue.empty())){
                     queue.pop_back();
@@ -207,16 +221,40 @@ std::pair<int,Action> Keyboard::getAction() {
                 return std::pair<int,Action>(initial, Action::colonAwait);
             }
         }
+    }else if (searchMode){
+        if (initial == 10){ //search the thing!!!!
+            searchMode = false;
+            if (opp){
+                opp = false;
+                return std::pair<int, Action>(0, Action::searchOpp);
+            }else{
+                return std::pair<int, Action>(0, Action::search);
+            }
+        }
+        else
+        {
+            if (initial== 127){ //backspace
+                return std::pair<int, Action>(0, Action::queuePop);
+            } //we are still entering
+            return std::pair<int, Action>(initial, Action::searchAwait);
+        }
     }else if (queue.empty())
     {                                                  //if queue is clear
         if (awaitKey.find(initial) != awaitKey.end()){ //if we find its a await needed command
-            if (!(initial >= '0' && initial <= '9') && initial!=':')
+            if (!(initial >= '0' && initial <= '9') && initial!=':' && initial != '/' && initial != '?')
             {
                 queue.push_back(initial);
             }
             if(initial == ':'){
                 colonMode = true;
                 return std::pair<int, Action>(initial, Action::colonAwait); //!vm needs to keep a var for this as well
+            }
+            if (initial == '/' || initial == '?'){
+                searchMode = true;
+                if (initial == '?'){
+                    opp = true;
+                }
+                return std::pair<int, Action>(initial, Action::searchAwait);
             }
             return std::pair<int, Action>(initial, Action::await);
         } //if its a simple command

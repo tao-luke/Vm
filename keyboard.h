@@ -11,6 +11,8 @@
 class Keyboard : public Controller
 {
     std::map<int, Action> keymap;
+    bool searchMode = false;
+    bool opp = false;
     bool colonMode = false;
     Action getActionHelper(int initial, int buffer);
     Action getActionMovement(int initial,int movement);

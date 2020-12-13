@@ -24,6 +24,8 @@ class Line{
     int nextWordNotSpace(int x);
 
 public:
+    int findMatchOpp(int x, std::vector<int> target);
+    int findMatch(int x, std::vector<int> target);
     void displayLine(int y, int x);
     Line(const std::vector<char> &line, bool withNL, int lineSize, int fileLine, int bufferLine, int beginIndex);
     std::vector<char> &getRaw();

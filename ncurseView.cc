@@ -14,23 +14,17 @@ NcurseView::NcurseView(Vm &vm) : cursorY{0}, cursorX{0}, screenH{0}, screenW{0},
 {
 }
 
-void NcurseView::displayFile(){ //handle the display of the content after a firstDisplayLine change
+void NcurseView::displayFile(){ //display the screen with a cursorpos and firstdisplayline coord
     File file = vm.getFile();
     int x = 0;
     int y = 0;
-    //! this part should become fancy later on!!!! //we need to convert each line to special line each type view updates!!!!
+   
     int end = min(maxH, firstDisplayLine + screenH);
-    for (int i = firstDisplayLine; i < end ; i++) //! accomate coloring and what not
+    for (int i = firstDisplayLine; i < end ; i++) 
     { //lines to be shown on screen
         file.getLine(i).displayLine(y, x);
         x = 0;
         y++;
-        // move(y-1, screenW+1);
-        // if (file.getLineWithNL(i)){
-        //     addch('1');
-        // }else{
-        //     addch('0');
-        // }
     }
     int tmp = maxH;
     while (tmp < firstDisplayLine + screenH)
@@ -40,23 +34,23 @@ void NcurseView::displayFile(){ //handle the display of the content after a firs
         tmp++;
     }
 }
-void NcurseView::displayView(){
+void NcurseView::displayView(){ //initialize the ncurseview for display
     noecho();
     keypad(stdscr, TRUE);
-    start_color();
+    if (vm.highlightOption()){
+        start_color();
+    }
+    
     getmaxyx(stdscr, screenH, screenW);
     screenH--; //make space for status bar
-    screenW--;
-    screenW--;
-    screenW--;
     updateMaxH();
     displayFile(); //display the original file
     move(0, 0);
 }
-int NcurseView::updateMaxH(){
-    maxH = (vm.getFile()).lineTotal() ; //save space for status bar
+int NcurseView::updateMaxH(){ //update the maxH when file contents have been modified
+    maxH = (vm.getFile()).lineTotal(); 
 }
-bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if simple movement is ok
+bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if the given cursor pos is valid
     //rules for where the cursor can be!
     if (cursorY < 0){
         return false;
@@ -80,7 +74,7 @@ bool NcurseView::validCursor(int cursorY, int cursorX){ //return true if simple 
         return false;
     return true;
 }
-bool NcurseView::validateY(int cursorY){
+bool NcurseView::validateY(int cursorY){ //return true if valid y pos given
     if (cursorY < 0){
         return false;
     }
@@ -93,7 +87,7 @@ bool NcurseView::validateY(int cursorY){
     }
     return true;
 }
-bool NcurseView::validateX(int y,int cursorX){
+bool NcurseView::validateX(int y,int cursorX){ //return true if valid x pos given
     File file = vm.getFile();
     if ( cursorX >= file.getRawLineSize(y+firstDisplayLine)){
         if (!(cursorX ==0) || !(file.getRawLineSize(y+firstDisplayLine) == 0)){
@@ -106,14 +100,14 @@ bool NcurseView::validateX(int y,int cursorX){
     return true;
 }
 bool NcurseView::validFirstLine(int firstLine){ //determine if is it ok to have firsTLine as firstDisplayLine?
-    if (firstLine+ screenH <= maxH && firstLine >= 0) //we had cursorY instead here //!
+    if (firstLine+ screenH <= maxH && firstLine >= 0) //we had cursorY instead here 
         return true;
     return false;
 }
 
-void NcurseView::displayStatusBar(){
+void NcurseView::displayStatusBar(){ //display the statusbar
     move(screenH, 0);
-    if (colonMode){
+    if (focusedMode){
         for(auto & c: queue){
             addch(c);
         }
@@ -153,12 +147,12 @@ void NcurseView::displayStatusBar(){
 
         move(screenH, screenW - 10); //cursorInfo
         std::pair<int, int> data = vm.convertCursor(cursorY + firstDisplayLine, cursorX);
-        std::string lineInfo = std::to_string(data.first) + "," + std::to_string(data.second);
+        std::string lineInfo = std::to_string(cursorY) + "," + std::to_string(cursorX); //!
         char const *cursorPos = lineInfo.c_str();
         printw(cursorPos);
 
 
-        move(screenH, screenW-2 ); //percent sign
+        move(screenH, screenW-3 ); //percent sign
         int tmp = ((screenH + firstDisplayLine)*100 / maxH);
         if (firstDisplayLine >= maxH-screenH){
             printw("Bot");
@@ -176,7 +170,7 @@ void NcurseView::displayStatusBar(){
 std::pair<int,int> NcurseView::moveLeftUp(){ //move left if possible, else if above is part of this line, move to its end
     int x = cursorX;
     int y = cursorY;
-    File file = vm.getFile(); //! rewrite these 2 functions
+    File file = vm.getFile(); 
     if (x > 0)
         x--;
     else
@@ -211,7 +205,6 @@ std::pair<int,int> NcurseView::moveRightDown(){
     }
     return std::pair<int, int>(y, x);
 }
-
 std::pair<int,int> NcurseView::notStrictMoveRightDown(){
     int x = cursorX;
     int y = cursorY;
@@ -233,30 +226,112 @@ std::pair<int,int> NcurseView::notStrictMoveRightDown(){
     }
     return std::pair<int, int>(y, x);
 }
-std::pair<int,int> NcurseView::moveUp(){
+std::pair<int,int> NcurseView::rightDownSearch(){
     int x = cursorX;
     int y = cursorY;
-    if (validateY(y-1)){
-        y--;
-        while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0)
-        {
+    File file = vm.getFile();
+    int line = firstDisplayLine+y;
+    int max = min(screenW, file.getRawLineSize(line)+1);
+    if (x + 1 >= max)
+    { //if x is at the end of screen
+        y++;
+        x = 0;
+    }
+    else
+    {
+        x++;
+    }
+    return std::pair<int, int>(y, x);
+}
+std::pair<int,int> NcurseView::leftUpSearch(){
+    int x = cursorX;
+    int y = cursorY;
+    File file = vm.getFile();
+    if (x > 0)
+        x--;
+    else
+    {
+        int line = firstDisplayLine + y;
+        if (line-1 >=0){
             y--;
-        }
-
-        if (!(validateX(y,x))){
-            std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
-            if (data.first != -1){
-                x = data.second;
-                if (x != 0){
-                    x--;
-                }
-                y = data.first - firstDisplayLine;
+            x = file.getRawLineSize(line - 1);
+            if (x != 0){
+                x--;
             }
         }
     }
     return std::pair<int, int>(y, x);
 }
+std::pair<int,int> NcurseView::moveUp(){
+    int x = cursorX;
+    int y = cursorY;
+    if (validateY(y-1)){
+        if (vm.getFile().getBeginIndexOnLine(y + firstDisplayLine) == 0){ //if current line is the begin of a line
+            y--;
+            while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find the first beginindex line
+            {
+                y--;
+            }
 
+            if (!(validateX(y,x))){  //if we need to adjust x
+                std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
+                if (data.first != -1){
+                    x = data.second;
+                    if (x != 0){
+                        x--;
+                    }
+                    y = data.first - firstDisplayLine;
+                }
+            }
+        }else{       //if current line isnt
+            y--;
+            while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find top line
+            {
+                y--;
+            }
+            if (y + firstDisplayLine -1 < 0){ //if this line is at the end
+                return std::pair<int,int>(cursorY,cursorX);
+            }
+            y--;
+            while (y+firstDisplayLine >=0 &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find the first beginindex line
+            {
+                y--;
+            }
+            if (!(validateX(y,x))){  //if we need to adjust x
+                std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
+                if (data.first != -1){
+                    x = data.second;
+                    if (x != 0){
+                        x--;
+                    }
+                    y = data.first - firstDisplayLine;
+                }
+            }
+        }
+    }
+
+
+
+    // if (validateY(y-1)){
+    //     y--;
+    //     while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0)
+    //     {
+    //         y--;
+    //     }
+
+    //     if (!(validateX(y,x))){
+    //         std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
+    //         if (data.first != -1){
+    //             x = data.second;
+    //             if (x != 0){
+    //                 x--;
+    //             }
+    //             y = data.first - firstDisplayLine;
+    //         }
+    //     }
+    // }
+    return std::pair<int, int>(y, x);
+}
 std::pair<int,int> NcurseView::moveDown(){
     int x = cursorX;
     int y = cursorY;
@@ -298,8 +373,6 @@ void NcurseView::removeCharHelper(int line, int x,bool copy,Action action){
             if (x != 0){
                 cursorX--;
             }
-
-            
         }
         if (line != 0){
             if (bef != vm.getFile().getLineWithNL(line - 1)){
@@ -309,35 +382,46 @@ void NcurseView::removeCharHelper(int line, int x,bool copy,Action action){
         }
     }
 }
+Action NcurseView::init(Action action){
+    if (action == Action::queuePop)
+    { //when popping a queue
+        queue.pop_back();
+    }
+    else if (action != Action::redo && action != Action::repeatSearch && action != Action::repeatSearchOpp && action != Action::repeatCharSearch) //make a history
+    {
+        vm.pushActionToHistory(action);
+    }
+    if (!(queue.empty()) && !(focusedMode)){ //if queue is not needed 
+        queue.clear();
+    }
+    return action;
+}
 void NcurseView::updateView(std::pair<int,Action> input){
     int c = input.first; //current command char
-    if (input.second == Action::await || input.second == Action::colonAwait)
+    std::pair<int, int> data;
+    Action in = input.second;
+
+    if (input.second == Action::await || input.second == Action::colonAwait || input.second == Action::searchAwait)
     { //when are waiting for a queue
         queue.push_back(c);
     }
     else
     { //else ready to do stuff
-        if (input.second == Action::queuePop){
-            queue.pop_back();
-        }
-        else if (input.second != Action::redo)
-        {
-            vm.pushActionToHistory(input.second);
-        }
-        if (!(queue.empty()) && !(colonMode)){
-            queue.clear();
-        }
+        in = init(input.second);
     }
     File &file = vm.getFile();           //easy file access
     int line = cursorY+firstDisplayLine; //line on
     int tmp; //to copy any int
-    std::pair<int, int> data;
+
     std::vector<int> info;
     std::string name;
-    switch (input.second)
+    focusedMode = false;
+    switch (in)
     {
+    case Action::queuePop:
+        focusedMode = true;
+        break;
     case Action::invalid:
-        colonMode = false;
         queue.clear();
         break;
     case Action::await:
@@ -346,7 +430,6 @@ void NcurseView::updateView(std::pair<int,Action> input){
         cursorY = 0;
         cursorX = 0;
         firstDisplayLine = 0;
-        colonMode = false;
         queue.clear();
         break;
     case Action::insertOtherFile:
@@ -356,7 +439,6 @@ void NcurseView::updateView(std::pair<int,Action> input){
         }
         vm.insertOtherFile(line, name);
         updateMaxH();
-        colonMode = false;
         queue.clear();
         break;
     case Action::jumpToLine:
@@ -371,15 +453,108 @@ void NcurseView::updateView(std::pair<int,Action> input){
             data = vm.convertCursor(cursorY, cursorX);
         }
         queue.clear();
-        colonMode = false;
+        break;
+    case Action::repeatCharSearch:
+        if (vm.getHistorySize() != 0 && (vm.getLastAction() == Action::moveToNextChar || vm.getLastAction() == Action::moveToPreviousChar)){
+            if (vm.getLastAction() == Action::moveToNextChar){
+                data = vm.nextCharCoord(line, cursorX, vm.getLastChar());
+                if (data.first != -1){
+                    cursorX = data.second;
+                    cursorY = data.first - firstDisplayLine;
+                }
+                scrollDown();
+            }else{
+                data = vm.previousCharCoord(line, cursorX, vm.getLastChar());
+                if (data.first != -1){
+                    cursorX = data.second;
+                    cursorY = data.first - firstDisplayLine;
+                }
+                scrollUp();
+            }
+        }
+        break;
+    case Action::repeatSearch:
+        if (vm.getHistorySize() != 0){
+            if (vm.getLastAction() == Action::search || vm.getLastAction() == Action::searchOpp){
+                focusedMode = true; //retain a focused view
+                std::vector<int> tmp = queue;
+                tmp.erase(tmp.begin());
+                if (vm.getLastAction() == Action::search){
+                    data = rightDownSearch();
+                    data = vm.searchFor(data.first + firstDisplayLine, data.second, tmp);
+                }else{
+                    data = leftUpSearch();
+                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); //! change
+                }
+                if (data.first != -1){
+                    cursorX = data.second;
+                    cursorY = data.first - firstDisplayLine;
+                }
+            }
+            scrollUp();
+            scrollDown();
+        }
+        break;
+    case Action::repeatSearchOpp:
+        if (vm.getHistorySize() != 0){
+            if (vm.getLastAction() == Action::search || vm.getLastAction() == Action::searchOpp){
+                focusedMode = true; //retain a focused view
+                std::vector<int> tmp = queue;
+                tmp.erase(tmp.begin());
+                if (vm.getLastAction() == Action::search){
+                    data = leftUpSearch();
+                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); //! change
+                }else{
+                    data = rightDownSearch(); //doesn't always work?
+                    data = vm.searchFor(data.first + firstDisplayLine, data.second, tmp);
+                }
+                if (data.first != -1){
+                    cursorX = data.second;
+                    cursorY = data.first - firstDisplayLine;
+                }
+            }
+            scrollUp();
+            scrollDown();
+        }
+        break;
+    case Action::searchOpp:
+        if (!(queue.empty())){
+            focusedMode = true;
+            std::vector<int> tmp = queue;
+            tmp.erase(tmp.begin());
+            data = vm.searchForOpp(line, cursorX, tmp);
+            if (data.first != -1){
+                cursorX = data.second;
+                cursorY = data.first - firstDisplayLine;
+            }
+            scrollUp();
+            scrollDown();
+        }
+        break;
+    case Action::search:
+        if (!(queue.empty()))
+        {
+            focusedMode = true; //retain a focused view
+            std::vector<int> tmp = queue;
+            tmp.erase(tmp.begin());
+            data = vm.searchFor(line, cursorX, tmp);
+            if (data.first != -1){
+                cursorX = data.second;
+                cursorY = data.first - firstDisplayLine;
+            }
+            scrollUp();
+            scrollDown();
+        }
         break;
     case Action::colonAwait:
-        colonMode = true;
+        focusedMode = true;
+        break;
+    case Action::searchAwait:
+        focusedMode = true;
         break;
     case Action::saveNoExit:
         vm.saveFile();
         queue.clear();
-        colonMode = false;
         vm.getModified() = false;
         break;
     case Action::noSaveExit:
@@ -405,7 +580,6 @@ void NcurseView::updateView(std::pair<int,Action> input){
             cursorX--;
         }
         queue.clear();
-        colonMode = false;
         break;
     case Action::saveAndExit:
         vm.saveFile();
@@ -564,8 +738,8 @@ void NcurseView::updateView(std::pair<int,Action> input){
             vm.setSkipRecord(true);
             vm.removeLineFromFile(data.first + firstDisplayLine, false);
             updateMaxH();
-            
-            cursorX = data.second;
+
+            cursorX = 0;
             cursorY = data.first;
             while (!(validateY(cursorY))){
                 cursorY--;
@@ -604,7 +778,12 @@ void NcurseView::updateView(std::pair<int,Action> input){
         break;
     case Action::redo:
         if (vm.getHistorySize() != 0){
-            updateView(std::pair<int, Action>(input.first, vm.getLastAction()));
+            if (vm.getLastAction() == Action::moveToNextChar || vm.getLastAction() == Action::moveToPreviousChar){
+                updateView(std::pair<int, Action>(input.first, Action::repeatCharSearch));
+            }else{
+                updateView(std::pair<int, Action>(input.first, vm.getLastAction()));
+            }
+            
             return;
         }
         break;
@@ -616,8 +795,8 @@ void NcurseView::updateView(std::pair<int,Action> input){
             vm.setSkipRecord(true);
             vm.removeLineFromFile(data.first + firstDisplayLine, true);
             updateMaxH();
-            
-            cursorX = data.second;
+
+            cursorX = 0;
             cursorY = data.first;
             while (!(validateY(cursorY))){
                 cursorY--;
