@@ -146,7 +146,6 @@ void NcurseView::displayStatusBar(){ //display the statusbar
 
 
         move(screenH, screenW - 10); //cursorInfo
-        std::pair<int, int> data = vm.convertCursor(cursorY + firstDisplayLine, cursorX);
         std::string lineInfo = std::to_string(cursorY) + "," + std::to_string(cursorX); //!
         char const *cursorPos = lineInfo.c_str();
         printw(cursorPos);
@@ -262,17 +261,18 @@ std::pair<int,int> NcurseView::leftUpSearch(){
     }
     return std::pair<int, int>(y, x);
 }
-std::pair<int,int> NcurseView::moveUp(){
+std::pair<int,int> NcurseView::moveUp(){ //move up to the first begininng line that isnt part of this current one.
     int x = cursorX;
     int y = cursorY;
     if (validateY(y-1)){
-        if (vm.getFile().getBeginIndexOnLine(y + firstDisplayLine) == 0){ //if current line is the begin of a line
+        int line = cursorY + firstDisplayLine;
+        y--;
+        while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find top line
+        {
             y--;
-            while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find the first beginindex line
-            {
-                y--;
-            }
+        }
 
+        if (vm.getFile().getBeginIndexOnLine(line) == 0){ //if current line is the begin of a line
             if (!(validateX(y,x))){  //if we need to adjust x
                 std::pair<int,int> data = vm.endLineCoord(y+firstDisplayLine); 
                 if (data.first != -1){
@@ -284,13 +284,8 @@ std::pair<int,int> NcurseView::moveUp(){
                 }
             }
         }else{       //if current line isnt
-            y--;
-            while (validateY(y-1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find top line
-            {
-                y--;
-            }
             if (y + firstDisplayLine -1 < 0){ //if this line is at the end
-                return std::pair<int,int>(cursorY,cursorX);
+            return std::pair<int,int>(cursorY,cursorX);
             }
             y--;
             while (y+firstDisplayLine >=0 &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find the first beginindex line
@@ -337,8 +332,11 @@ std::pair<int,int> NcurseView::moveDown(){
     int y = cursorY;
     if (validateY(y+1)){
         y++;
-        while (validateY(y+1) &&vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0)
+        while (vm.getFile().getBeginIndexOnLine(firstDisplayLine + y) != 0) //find the next good line
         {
+            if (firstDisplayLine+y+1 >= maxH){ //when we are at the end and cant move down
+                return std::pair<int, int>(cursorY, cursorX);
+            }
             y++;
         }
         if (!(validateX(y,x))){
@@ -419,7 +417,9 @@ void NcurseView::updateView(std::pair<int,Action> input){
     switch (in)
     {
     case Action::queuePop:
-        focusedMode = true;
+        if (!(queue.empty())){
+            focusedMode = true;
+        }
         break;
     case Action::invalid:
         queue.clear();
@@ -455,7 +455,8 @@ void NcurseView::updateView(std::pair<int,Action> input){
         queue.clear();
         break;
     case Action::repeatCharSearch:
-        if (vm.getHistorySize() != 0 && (vm.getLastAction() == Action::moveToNextChar || vm.getLastAction() == Action::moveToPreviousChar)){
+        if (vm.getHistorySize() != 0 && (vm.getLastAction() == Action::moveToNextChar || vm.getLastAction() == Action::moveToPreviousChar))
+        {
             if (vm.getLastAction() == Action::moveToNextChar){
                 data = vm.nextCharCoord(line, cursorX, vm.getLastChar());
                 if (data.first != -1){
@@ -474,7 +475,8 @@ void NcurseView::updateView(std::pair<int,Action> input){
         }
         break;
     case Action::repeatSearch:
-        if (vm.getHistorySize() != 0){
+        if (vm.getHistorySize() != 0)
+        {
             if (vm.getLastAction() == Action::search || vm.getLastAction() == Action::searchOpp){
                 focusedMode = true; //retain a focused view
                 std::vector<int> tmp = queue;
@@ -558,7 +560,9 @@ void NcurseView::updateView(std::pair<int,Action> input){
         vm.getModified() = false;
         break;
     case Action::noSaveExit:
-        if (!(vm.getModified())){
+        queue.clear();
+        if (!(vm.getModified()))
+        {
             endwin();
             vm.end();
             return;

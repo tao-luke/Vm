@@ -156,9 +156,6 @@ void Vm::insertNLAbove(int line,int x){
 size_t Vm::getStackSize(){
     return undoStack.size();
 }
-void Vm::formatToRaw(){
-    buffer = std::move(file->convertToRaw());
-}
 void Vm::setSkipRecord(bool next){
     skipOneRecord = next;
 }

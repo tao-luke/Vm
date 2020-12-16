@@ -33,7 +33,7 @@ class Vm :public Model{
     int lastChar = -1;
     std::vector<std::vector<char>> readFile(const char *name);
     void formatToFile();
-    void formatToRaw();
+    void formatToRaw(); //not needed atm, but possibly useful in the future to convert the otherway :)
     void mergeLines(int l1, int l2);
     void copyToClipboard(const std::vector<char> target,bool overide);
     bool validate(int vecline, int vecindex);
@@ -42,25 +42,25 @@ class Vm :public Model{
     bool fileExist(std::string &name);
 
 public:
-    char getLastChar();
+    char getLastChar(); //acc
     std::pair<int, int> searchForOpp(int line, int cursorX, std::vector<int> word);
     std::pair<int, int> searchFor(int line, int cursorX, std::vector<int> word);
-    bool highlightOption();
+    bool highlightOption(); //acc
     void insertOtherFile(int line, std::string name);
     void end();
     void saveFile();
-    size_t getHistorySize();
-    Action getLastAction();
-    void pushActionToHistory(Action action);
-    bool& getModified();
-    const char *getName();
-    size_t getStackSize();
+    size_t getHistorySize(); //acc
+    Action getLastAction(); //acc
+    void pushActionToHistory(Action action); //acc
+    bool& getModified(); //acc
+    const char *getName(); //acc
+    size_t getStackSize(); //acc
     const std::pair<int, int> convertCursor(int line, int x);
-    void setSkipRecord(bool next);
-    bool isUndoStackEmpty();
+    void setSkipRecord(bool next); //acc
+    bool isUndoStackEmpty(); //acc
     void recordCursor(int cursorY, int firstDisplayLine, int cursorX, int maxH, Action action);
-    void setStateHelper(int cursorY, int firstDisplayLine, int cursorX, int maxH, State state);
-    int getMulti();
+    void setStateHelper(int cursorY, int firstDisplayLine, int cursorX, int maxH, State state); //acc
+    int getMulti(); //acc
     const std::pair<int, int> pasteAfterCursor(int cursorY,int firstDisplayLine,int maxH,int cursorX);
     const std::pair<int, int> pasteBeforeCursor(int cursorY,int firstDisplayLine,int maxH, int cursorX);
     std::pair<int, int> endLineCoord(int lineN);
@@ -76,19 +76,19 @@ public:
     const std::pair<int, int> firstNonBlankCoord(int line, int x);
     void deleteCharSimple(int line, int x, bool copyIt);
     void run();
-    int getActionRaw();
+    int getActionRaw(); //acc
     void insertNLBehind(int line, int x);
     void insertNLAbove(int line, int x);
     void insertCharToFile(int line, int x, int c);
     void delCharFromFile(int line, int x);
-    void setState(State state);
-    State getState();
+    void setState(State state); //acc
+    State getState(); //acc
     void removeLineFromFile(int lineN, bool copy);
     void copyLineFromFile(int lineN,bool override);
     void copyChar(int line, int x);
-    File &getFile();
+    File &getFile(); //acc
     std::vector<int> handleUndo();
-    std::vector<std::vector<char>> &getBuffer();
+    std::vector<std::vector<char>> &getBuffer(); //acc
 };
 
 #endif

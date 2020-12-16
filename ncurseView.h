@@ -36,7 +36,6 @@ class NcurseView : public View
     std::pair<int,int> leftUpSearch();
     std::pair<int,int> rightDownSearch();
 public:
-
     void refreshView() override;
     NcurseView(Vm & vm); 
     void updateView(std::pair<int,Action> input) override;

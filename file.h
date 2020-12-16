@@ -11,8 +11,8 @@ class File{
 
 public:
     File(std::vector<std::vector<char>> buffer,int lineSize);
-    int lineTotal();
-    int getBeginIndexOnLine(int line);
+    int lineTotal(); //acc
+    int getBeginIndexOnLine(int line); 
     void printLines();
     std::vector<char>& getLineRaw(int line);
     Line &getLine(int line);
