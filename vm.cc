@@ -8,7 +8,7 @@
 class badlineN{
 };
 std::vector<std::vector<char>> Vm::readFile(const char *name)
-{ //! need to add check for last char being \n
+{ 
     try{
         std::vector<std::vector<char>> buffer;
         std::ifstream FILE(name);
@@ -109,7 +109,6 @@ std::pair<int,int> Vm::searchFor(int line, int x, std::vector<int> word){
 }
 std::pair<int,int> Vm::searchForOpp(int line, int x, std::vector<int>word){
     for (; line >= 0;line--){
-        //std::cout << "wow";
         int result = file->getLine(line).findMatchOpp(x, word);
         if (result != -1){
             return std::pair<int, int>(line, result);
@@ -447,7 +446,7 @@ void Vm::deleteCharSimple(int line, int x,bool copyIt){
         copyToClipboard(std::move(tmp),false);
     }
     buffer[data.first].erase(ite);
-    formatToFile(); //! we can improve efficiency here
+    formatToFile(); 
 }
 bool& Vm::getModified(){
     return modified;
@@ -654,7 +653,6 @@ bool Vm::fileExist(std::string & name){
     return check.good();
 }
 void Vm::insertOtherFile(int line, std::string name){
-    std::cout << name;
     if (fileExist(name))
     {
         std::pair<int,int> data;
@@ -719,3 +717,4 @@ void Vm::run()
         
     }
 }
+

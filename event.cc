@@ -142,3 +142,4 @@ std::vector<int> Event::undo()
     }
     return viewInfo;
 }
+

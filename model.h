@@ -9,8 +9,6 @@ using namespace std;
 
 class Model
 {
-
-
     protected:
         unique_ptr<Controller> control;
         unique_ptr<View> view;
@@ -26,3 +24,4 @@ class Model
         //add view
 };
 #endif
+

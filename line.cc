@@ -8,7 +8,7 @@
 #define ident 4
 #define comment 5
 #define prep 6
-#define other 7
+#define others 7
 Line::Line(const std::vector<char> &rawLine, bool withNL, int lineSize, int fileLine, int bufferLine, int beginIndex) : rawLine{rawLine}, lineLimit{lineSize}, bufferLine{bufferLine}, beginIndex{beginIndex}, withNL{withNL}
 {
     convertToLine();
@@ -142,7 +142,7 @@ void Line::initColorPair(){
     init_pair(ident,COLOR_RED ,COLOR_BLACK);
     init_pair(comment,COLOR_CYAN ,COLOR_BLACK);
     init_pair(prep, COLOR_BLUE,COLOR_BLACK);
-    init_pair(other, COLOR_WHITE,COLOR_BLACK);
+    init_pair(others, COLOR_WHITE,COLOR_BLACK);
 }
 void Line::displayLine(int y, int x)
 {
@@ -182,7 +182,7 @@ int Line::firstCommentPos(){
 void Line::parseLine(int start,int end){
     std::regex stringRule("^\".*\"$");
     std::regex numRule("^[0-9]+$");
-    std::regex keywords("^(alignas)|(alignof)|(and)|(and_eq)|(asm)|(auto)|(bitand)|(bitor)|(bool)|(break)|(case)|(catch)|(char)|(char16_t)|(char32_t)|(class)|(compl)|(const)|(constexpr)|(const_cast)|(continue)|(decltype)|(default)|(delete)|(do)|(double)|(dynamic_cast)|(else)|(enum)|(explicit)|(export)|(extern)|(false)|(float)|(for)|(friend)|(goto)|(if)|(inline)|(int)|(long)|(mutable)|(namespace)|(new)|(noexcept)|(not)|(not_eq)|(nullptr)|(operator)|(or)|(or_eq)|(private)|(protected)|(public)|(register)|(reinterpret_cast)|(return)|(short)|(signed)|(sizeof)|(static)|(static_assert)|(static_cast)|(struct)|(switch)|(template)|(this)|(thread_local)|(throw)|(true)|(try)|(typedef)|(typeid)|(typename)|(union)|(unsigned)|(using)|(virtual)|(void)|(volatile)|(wchar_t)|(while)|(xor)|(xor_eq)^");
+    std::regex keywords("^(alignas)|(alignof)|(and)|(and_eq)|(asm)|(auto)|(bitand)|(bitor)|(bool)|(break)|(case)|(catch)|(char)|(char16_t)|(char32_t)|(class)|(compl)|(const)|(constexpr)|(const_cast)|(continue)|(decltype)|(default)|(do)|(double)|(dynamic_cast)|(else)|(enum)|(explicit)|(export)|(extern)|(false)|(float)|(for)|(friend)|(goto)|(if)|(inline)|(int)|(long)|(mutable)|(namespace)|(new)|(noexcept)|(not)|(not_eq)|(nullptr)|(operator)|(or)|(or_eq)|(private)|(protected)|(public)|(register)|(reinterpret_cast)|(return)|(short)|(signed)|(sizeof)|(static)|(static_assert)|(static_cast)|(struct)|(switch)|(template)|(this)|(thread_local)|(throw)|(true)|(try)|(typedef)|(typeid)|(typename)|(union)|(unsigned)|(using)|(virtual)|(void)|(volatile)|(wchar_t)|(while)|(xor)|(xor_eq)^");
     std::regex types("^(int)|(char)|(bool)|(float)|(double)|(void)|(wchar_t)|(sample)$");
     for (int i = start; i < end; i++)
     {
@@ -254,3 +254,4 @@ int Line::rawSize(){
 Word& Line::getLastWord(){
     return line.back();
 }
+

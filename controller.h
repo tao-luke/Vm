@@ -11,3 +11,4 @@ public:
     virtual int getActionRaw() = 0;
 };
 #endif
+

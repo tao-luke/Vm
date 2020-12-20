@@ -28,3 +28,4 @@ void Model::updateView(int c){
 void Model::updateView(std::pair<int,Action> data){
     view->updateView(data); 
 }
+

@@ -1,6 +1,6 @@
 #include "keyboard.h"
 #include "ncurses.h"
-Keyboard::Keyboard(){ //default to command mode  //!replace with proper hjkl lol
+Keyboard::Keyboard(){ //default to command mode  
     keymap[259] = Action::up;
     keymap[260] = Action::left;
     keymap[258] = Action::down;
@@ -276,7 +276,7 @@ std::pair<int,Action> Keyboard::getAction() {
             }
             if(initial == ':'){ //colon mode assoc
                 colonMode = true;
-                return std::pair<int, Action>(initial, Action::colonAwait); //!vm needs to keep a var for this as well
+                return std::pair<int, Action>(initial, Action::colonAwait); 
             }
             if (initial == '/' || initial == '?'){ //search mode assoc
                 searchMode = true;
@@ -306,3 +306,4 @@ int Keyboard::getActionRaw(){
     a = getch();
     return a;
 }
+

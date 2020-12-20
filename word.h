@@ -3,13 +3,6 @@
 #include <vector>
 #include <ncurses.h>
 #include <string>
-#define keyword 1
-#define numLit 2
-#define strLit 3
-#define ident 4
-#define comment 5
-#define prep 6
-#define other 7
 class Word{
     std::vector<char> word;
     bool space = false;
@@ -64,3 +57,4 @@ public:
 };
 
 #endif
+

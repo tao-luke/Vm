@@ -146,7 +146,7 @@ void NcurseView::displayStatusBar(){ //display the statusbar
 
 
         move(screenH, screenW - 10); //cursorInfo
-        std::string lineInfo = std::to_string(cursorY) + "," + std::to_string(cursorX); //!
+        std::string lineInfo = std::to_string(cursorY) + "," + std::to_string(cursorX);
         char const *cursorPos = lineInfo.c_str();
         printw(cursorPos);
 
@@ -486,7 +486,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
                     data = vm.searchFor(data.first + firstDisplayLine, data.second, tmp);
                 }else{
                     data = leftUpSearch();
-                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); //! change
+                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); 
                 }
                 if (data.first != -1){
                     cursorX = data.second;
@@ -505,7 +505,7 @@ void NcurseView::updateView(std::pair<int,Action> input){
                 tmp.erase(tmp.begin());
                 if (vm.getLastAction() == Action::search){
                     data = leftUpSearch();
-                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); //! change
+                    data = vm.searchForOpp(data.first + firstDisplayLine, data.second, tmp); 
                 }else{
                     data = rightDownSearch(); //doesn't always work?
                     data = vm.searchFor(data.first + firstDisplayLine, data.second, tmp);
@@ -1081,7 +1081,7 @@ void NcurseView::scrollUp(){
     }
 }
 
-void NcurseView::updateView(int c){ //for INsert mode //! implement replace mode
+void NcurseView::updateView(int c){ //for INsert mode 
     if (c != 27)
     {                  //NOT esecape key
     int line = cursorY + firstDisplayLine;
@@ -1151,3 +1151,4 @@ void NcurseView::updateView(int c){ //for INsert mode //! implement replace mode
 
 NcurseView::~NcurseView(){
 }
+
