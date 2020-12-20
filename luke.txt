@@ -1,7 +1,0 @@
-#include <iostream>
-
-int main(){
- char c = 'l';
- std::string name = "luke" ; //this is my name
- if  
-}
