@@ -14,3 +14,7 @@ Syntax highlighting is supported for .cc and .h files with colors for:
   4) comments
   5) C preprocessor 
   6) else
+
+To run, simply type 
+      make 
+      ./vm (some file name)
