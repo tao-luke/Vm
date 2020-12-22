@@ -19,4 +19,5 @@ Syntax highlighting is supported for .cc and .h files with colors for:
 
 To run, simply type 
       make 
+      
       ./vm (some file name)
