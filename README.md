@@ -5,6 +5,8 @@ This one man project is built using C++ and its ncurses library for graphics.
 Commands Supported:
 a, b, x, c + motion, cc, f+character, d + motion, dd, h, k, l, i, n, o, p, r + character, s, u, w, x, y+ motion, yy, A, F + character, I, X, J, N, O, P, R, S, X, ^, $, 0, . , ;, /, ?, ctrl+b, ctrl+g, ctrl+d, ctrl+f, ctrl+u, :r, /search query, ?search query, :w, :q, :q!, :wq.
 
+![demo image](final.png)
+
 Number prefix IS allowed, so 5dd would remove 5 lines, 10u would undo 10 commands, and 9p would paste at cursor 9 times.
 
 Search query is IS allowed with reverse search "?" available.
